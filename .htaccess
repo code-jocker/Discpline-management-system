@@ -1,0 +1,11 @@
+# Protect environment files
+<FilesMatch "^\.env$">
+    Require all denied
+</FilesMatch>
+
+# Route /api/* requests to the API router
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+    RewriteRule ^api(?:/(.*))?$ api/index.php [L,QSA]
+</IfModule>

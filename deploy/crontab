@@ -1,0 +1,20 @@
+# SBMS Crontab
+# Install: crontab -e  (as www-data or root, adjust paths as needed)
+
+# ── Hourly: AI risk assessment for all students
+0 * * * * php /var/www/html/workers/risk-assessment-cron.php >> /var/log/sbms-risk-cron.log 2>&1
+
+# ── Daily 02:00 UTC: Retrain AI model (runs inside Docker ai-service container)
+0 2 * * * docker exec sbms-ai python /app/train.py >> /var/log/sbms-ai-train.log 2>&1
+
+# ── Daily 03:00 UTC: MySQL database backup
+0 3 * * * mysqldump --single-transaction -h 127.0.0.1 -P 3307 -u sbms_user -psbms_password sbms | gzip > /backups/sbms_$(date +\%Y\%m\%d).sql.gz 2>/dev/null
+
+# ── Weekly Sunday 04:00: Purge old rate-limit files (older than 1 hour, created in /storage/ratelimits)
+0 4 * * 0 find /var/www/html/storage/ratelimits -name "*.limit" -mmin +60 -delete 2>/dev/null
+
+# ── Daily 01:00: Rotate and compress application logs older than 7 days
+0 1 * * * find /var/www/html/storage/logs -name "*.log" -mtime +7 -exec gzip {} \; 2>/dev/null
+
+# ── Every 5 minutes: Check queue health (optional monitoring)
+# */5 * * * * php /var/www/html/workers/queue-health-check.php >> /var/log/sbms-queue-health.log 2>&1

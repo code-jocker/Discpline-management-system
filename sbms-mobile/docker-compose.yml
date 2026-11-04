@@ -1,0 +1,60 @@
+version: "3.9"
+
+services:
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    container_name: sbms-api
+    ports:
+      - "4000:4000"
+    env_file:
+      - .env
+    environment:
+      - MONGO_URI=mongodb://mongodb:27017/sbms
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - sbms
+
+  worker:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile.worker
+    container_name: sbms-worker
+    env_file:
+      - .env
+    environment:
+      - MONGO_URI=mongodb://mongodb:27017/sbms
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - mongodb
+      - redis
+    networks:
+      - sbms
+
+  mongodb:
+    image: mongo:7.0
+    container_name: sbms-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - sbms_mongo_data:/data/db
+    networks:
+      - sbms
+
+  redis:
+    image: redis:7-alpine
+    container_name: sbms-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - sbms
+
+networks:
+  sbms:
+
+volumes:
+  sbms_mongo_data:

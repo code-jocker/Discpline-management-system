@@ -1,0 +1,75 @@
+{
+  "assets/css/assistant.css": {
+    "file": "assets/assistant-CSdBpFwh.css",
+    "src": "assets/css/assistant.css",
+    "isEntry": true
+  },
+  "assets/css/auth.css": {
+    "file": "assets/auth-CZhkJj-u.css",
+    "src": "assets/css/auth.css",
+    "isEntry": true
+  },
+  "assets/css/discipline-engine.css": {
+    "file": "assets/discipline-engine-BzpyDfyj.css",
+    "src": "assets/css/discipline-engine.css",
+    "isEntry": true
+  },
+  "assets/css/settings.css": {
+    "file": "assets/settings-DThKcHuH.css",
+    "src": "assets/css/settings.css",
+    "isEntry": true
+  },
+  "assets/css/student-management.css": {
+    "file": "assets/student-management-BkPIPfti.css",
+    "src": "assets/css/student-management.css",
+    "isEntry": true
+  },
+  "assets/js/assistant.js": {
+    "file": "assets/assistant.js-D-j24c4_.js",
+    "name": "assistant.js",
+    "src": "assets/js/assistant.js",
+    "isEntry": true
+  },
+  "assets/js/auth.js": {
+    "file": "assets/auth.js-DEPYzUb6.js",
+    "name": "auth.js",
+    "src": "assets/js/auth.js",
+    "isEntry": true
+  },
+  "assets/js/dashboard.js": {
+    "file": "assets/dashboard.js-xUkCmPO5.js",
+    "name": "dashboard.js",
+    "src": "assets/js/dashboard.js",
+    "isEntry": true
+  },
+  "assets/js/discipline-engine.js": {
+    "file": "assets/discipline-engine.js-DUB2wvUK.js",
+    "name": "discipline-engine.js",
+    "src": "assets/js/discipline-engine.js",
+    "isEntry": true
+  },
+  "assets/js/settings.js": {
+    "file": "assets/settings.js-B9bUFUaX.js",
+    "name": "settings.js",
+    "src": "assets/js/settings.js",
+    "isEntry": true
+  },
+  "assets/js/student-management.js": {
+    "file": "assets/student-management.js-zvDbL__l.js",
+    "name": "student-management.js",
+    "src": "assets/js/student-management.js",
+    "isEntry": true
+  },
+  "assets/js/theme.js": {
+    "file": "assets/theme.js-D35Ag47j.js",
+    "name": "theme.js",
+    "src": "assets/js/theme.js",
+    "isEntry": true
+  },
+  "assets/js/user-management.js": {
+    "file": "assets/user-management.js-C2OLrC2U.js",
+    "name": "user-management.js",
+    "src": "assets/js/user-management.js",
+    "isEntry": true
+  }
+}

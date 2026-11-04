@@ -1,0 +1,73 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+.env.production.local
+
+# Dependencies
+node_modules/
+composer.lock
+
+# Build outputs
+build/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.log
+
+# Database
+*.sqlite
+*.db
+
+# Uploads and storage
+uploads/
+storage/
+/storage
+
+# Cache
+.cache/
+
+# Testing
+coverage/
+.phpunit.result.cache
+
+# Scratch files
+scratch/
+test_*.php
+verify_*.php
+tmp_*.php
+refactor.php
+
+# Workers (background tasks)
+workers/
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# AI/Kombai files
+.kombai/
+.vercel
+
+# Local scratch artifacts
+cookie.txt
+cookiejar.txt
+curl_cookie.txt
+response.html
+improve_tree.txt
+php-releases.tmp.json
+kilo
+gk/
+
+# Deployment build artifact
+deploy/infinityfree-backend.zip

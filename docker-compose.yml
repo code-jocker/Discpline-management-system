@@ -1,0 +1,56 @@
+version: "3.9"
+
+services:
+  app:
+    image: php:8.2-apache
+    container_name: sbms-app
+    ports:
+      - "8080:80"
+    volumes:
+      - ./:/var/www/html
+    environment:
+      SBMS_BASE_URL: http://localhost:8080
+      SBMS_DB_HOST: db
+      SBMS_DB_PORT: 3306
+      SBMS_DB_NAME: sbms
+      SBMS_DB_USER: sbms_user
+      SBMS_DB_PASS: sbms_password
+      SBMS_AI_SERVICE_URL: http://ai-service:8000
+
+  db:
+    image: mysql:8.0
+    container_name: sbms-db
+    restart: unless-stopped
+    ports:
+      - "3307:3306"
+    environment:
+      MYSQL_DATABASE: sbms
+      MYSQL_USER: sbms_user
+      MYSQL_PASSWORD: sbms_password
+      MYSQL_ROOT_PASSWORD: root_password
+    volumes:
+      - sbms_db_data:/var/lib/mysql
+
+  phpmyadmin:
+    image: phpmyadmin:5.2-apache
+    container_name: sbms-phpmyadmin
+    ports:
+      - "8081:80"
+    environment:
+      PMA_HOST: db
+      PMA_USER: root
+      PMA_PASSWORD: root_password
+    depends_on:
+      - db
+
+  ai-service:
+    build:
+      context: ./ai-service
+    container_name: sbms-ai
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./ai-service:/app
+
+volumes:
+  sbms_db_data:

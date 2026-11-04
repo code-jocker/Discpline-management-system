@@ -1,0 +1,11 @@
+incidents,total_marks_deducted,avg_per_week,risk_level
+0,0,0.0,Excellent
+1,4,0.2,Excellent
+2,7,0.5,Excellent
+3,14,1.2,Warning
+4,16,1.7,Warning
+5,22,2.0,Warning
+6,28,2.8,Warning
+7,35,3.6,Critical
+8,42,4.1,Critical
+10,50,5.0,Critical

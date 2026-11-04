@@ -1,0 +1,19 @@
+{
+  "name": "sbms-mobile",
+  "private": true,
+  "workspaces": [
+    "apps/api",
+    "apps/mobile",
+    "packages/shared"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev --workspace=apps/api",
+    "dev:mobile": "npm run dev --workspace=apps/mobile",
+    "build:api": "npm run build --workspace=apps/api",
+    "lint": "npm run lint --workspaces",
+    "test": "npm test --workspaces"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}
