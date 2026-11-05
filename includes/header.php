@@ -148,8 +148,11 @@ $viteAssets = $viteAssets ?? [];
         }
     </style>
     <link rel="stylesheet" href="<?= htmlspecialchars(vite_asset('assets/css/official.css')) ?>?v=<?= (int) (@filemtime(dirname(__DIR__) . '/assets/css/official.css') ?: 1) ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(vite_asset('assets/css/tokens.css')) ?>?v=<?= (int) (@filemtime(dirname(__DIR__) . '/assets/css/tokens.css') ?: 1) ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(vite_asset('assets/css/components.css')) ?>?v=<?= (int) (@filemtime(dirname(__DIR__) . '/assets/css/components.css') ?: 1) ?>">
 </head>
 <body class="<?= htmlspecialchars($bodyClass) ?>">
+    <a class="sbms-skip-link" href="#main-content">Skip to content</a>
     <?php render_plexus_background(); ?>
     <?php if (!$hideSidebar): ?>
     <header class="mobile-topbar">
@@ -192,7 +195,7 @@ $viteAssets = $viteAssets ?? [];
     <?php endif; ?>
     <div class="app-container">
         <?php if (!$hideSidebar) require_once __DIR__ . '/sidebar.php'; ?>
-        <main class="<?= htmlspecialchars($mainClass) ?> main-content">
+        <main id="main-content" tabindex="-1" class="<?= htmlspecialchars($mainClass) ?> main-content">
     <script>
         (function () {
             var body = document.body;

@@ -385,6 +385,12 @@ $sbms_sidebar_profile_pic = $sbms_sidebar_full_user['profile_picture'] ?? null;
                             <span class="sidebar-link-text">Test WhatsApp</span>
                         </span>
                     </a>
+                    <a class="sidebar-link <?= ($sbms_sidebar_currentPath === app_base_url() . '/parents/whatsapp-queue.php') ? 'active' : '' ?>" href="<?= e(app_base_url()) ?>/parents/whatsapp-queue.php">
+                        <span class="sidebar-link-inner">
+                            <span class="sidebar-link-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h16"/><path d="M4 12h10"/><path d="M4 18h7"/><path d="M18 12l3 3-3 3"/></svg></span>
+                            <span class="sidebar-link-text">WhatsApp Queue</span>
+                        </span>
+                    </a>
                 </div>
             </div>
             <a class="sidebar-link <?= ($sbms_sidebar_currentPath === app_base_url() . '/dashboard/analytics.php') ? 'active' : '' ?>" href="<?= e(app_base_url()) ?>/dashboard/analytics.php">
@@ -424,6 +430,13 @@ $sbms_sidebar_profile_pic = $sbms_sidebar_full_user['profile_picture'] ?? null;
             </span>
             <span id="sidebarNotifBadge" title="<?= e($sbms_sidebar_notificationScope['description']) ?>" style="<?= $sbms_sidebar_unreadCount === 0 ? 'display: none;' : '' ?> background: #ef4444; color: white; border-radius: 12px; padding: 2px 8px; font-size: 0.7rem; font-weight: bold; min-width: 20px; text-align: center;">
                 <?= $sbms_sidebar_unreadCount ?>
+            </span>
+        </a>
+
+        <a class="sidebar-link <?= ($sbms_sidebar_currentPath === app_base_url() . '/help/index.php') ? 'active' : '' ?>" href="<?= e(app_base_url()) ?>/help/index.php">
+            <span class="sidebar-link-inner">
+                <span class="sidebar-link-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.6 9a2.5 2.5 0 0 1 4.8 1c0 1.7-2.4 2-2.4 3.6"/><path d="M12 17.2h.01"/></svg></span>
+                <span class="sidebar-link-text">How it works</span>
             </span>
         </a>
 

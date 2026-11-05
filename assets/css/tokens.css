@@ -1,0 +1,103 @@
+/* ============================================================
+   SBMS design tokens
+   Additive layer loaded after official.css. Every alias resolves
+   to the existing institutional navy / indigo / gold palette so
+   page colours never drift.
+   ============================================================ */
+
+:root {
+    /* Brand aliases */
+    --sbms-navy: var(--of-navy, #1e2a78);
+    --sbms-navy-deep: var(--of-navy-deep, #17205c);
+    --sbms-navy-soft: var(--of-navy-soft, #2c3b9e);
+    --sbms-indigo: var(--of-teal, #2438a4);
+    --sbms-indigo-bright: var(--of-teal-bright, #3149c6);
+    --sbms-indigo-soft: var(--of-teal-soft, #e7ebfb);
+    --sbms-gold: var(--of-gold, #f59e0b);
+    --sbms-gold-soft: var(--of-gold-soft, #fef3c7);
+
+    /* Text and surfaces */
+    --sbms-ink: var(--of-ink, #111827);
+    --sbms-muted: var(--of-muted, #6b7280);
+    --sbms-line: var(--of-line, #e5e7eb);
+    --sbms-line-strong: var(--of-line-strong, #d1d5db);
+    --sbms-surface: var(--of-surface, #ffffff);
+    --sbms-page: var(--of-page, #f5f7fb);
+
+    /* Status */
+    --sbms-success: #047857;
+    --sbms-success-soft: #ecfdf5;
+    --sbms-warning: #b45309;
+    --sbms-warning-soft: #fffbeb;
+    --sbms-danger: #b91c1c;
+    --sbms-danger-soft: #fef2f2;
+    --sbms-info: var(--sbms-indigo);
+
+    /* Spacing scale */
+    --sbms-space-1: 0.25rem;
+    --sbms-space-2: 0.5rem;
+    --sbms-space-3: 0.75rem;
+    --sbms-space-4: 1rem;
+    --sbms-space-5: 1.25rem;
+    --sbms-space-6: 1.5rem;
+    --sbms-space-8: 2rem;
+    --sbms-space-10: 2.5rem;
+    --sbms-space-12: 3rem;
+
+    /* Radii */
+    --sbms-radius-sm: 8px;
+    --sbms-radius: var(--of-radius, 12px);
+    --sbms-radius-lg: var(--of-radius-lg, 16px);
+    --sbms-radius-pill: 999px;
+
+    /* Elevation */
+    --sbms-shadow-sm: var(--of-shadow-sm, 0 1px 2px rgba(16, 24, 40, 0.05));
+    --sbms-shadow: var(--of-shadow, 0 2px 4px rgba(16, 24, 40, 0.04), 0 18px 40px rgba(16, 24, 40, 0.08));
+    --sbms-shadow-lg: 0 24px 60px rgba(23, 32, 92, 0.18);
+
+    /* Type scale */
+    --sbms-font: var(--of-font, "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+    --sbms-text-xs: 0.75rem;
+    --sbms-text-sm: 0.875rem;
+    --sbms-text-base: 1rem;
+    --sbms-text-lg: 1.125rem;
+    --sbms-text-xl: 1.375rem;
+    --sbms-text-2xl: 1.75rem;
+    --sbms-text-3xl: 2.25rem;
+    --sbms-leading-tight: 1.25;
+    --sbms-leading: 1.6;
+
+    /* Focus ring — visible on white, navy and gold surfaces */
+    --sbms-focus: #3149c6;
+    --sbms-focus-ring: 0 0 0 3px rgba(49, 73, 198, 0.35);
+
+    /* Motion */
+    --sbms-ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+    --sbms-duration-fast: 150ms;
+    --sbms-duration: 240ms;
+
+    /* Layers */
+    --sbms-z-sidebar: 40;
+    --sbms-z-overlay: 60;
+    --sbms-z-toast: 90;
+    --sbms-z-modal: 100;
+
+    /* Layout */
+    --sbms-content-max: 1240px;
+    --sbms-topbar-height: 56px;
+    --sbms-bottomnav-height: 64px;
+}
+
+[data-theme="dark"] {
+    --sbms-success-soft: rgba(52, 211, 153, 0.14);
+    --sbms-warning-soft: rgba(251, 191, 36, 0.14);
+    --sbms-danger-soft: rgba(248, 113, 113, 0.14);
+    --sbms-surface: var(--of-surface, #0f2036);
+    --sbms-page: var(--of-page, #081426);
+    --sbms-ink: var(--of-ink, #e8eef7);
+    --sbms-muted: var(--of-muted, #9fb2c8);
+    --sbms-line: var(--of-line, #1e3550);
+    --sbms-line-strong: var(--of-line-strong, #2a4666);
+    --sbms-focus: #8ea2ff;
+    --sbms-focus-ring: 0 0 0 3px rgba(142, 162, 255, 0.4);
+}

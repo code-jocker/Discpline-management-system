@@ -34,7 +34,7 @@ final class Student
         static $columns = null;
 
         if ($columns === null) {
-            $wanted = ['date_of_birth', 'address', 'photo_path'];
+            $wanted = ['date_of_birth', 'address', 'photo_path', 'stream', 'dormitory', 'school_year'];
             $columns = array_values(array_filter(
                 $wanted,
                 static fn (string $column): bool => \Database::columnExists('students', $column)
@@ -68,6 +68,10 @@ final class Student
             } else {
                 $value = trim((string) $value);
                 $value = $value === '' ? null : $value;
+            }
+
+            if ($column === 'school_year' && $value === null) {
+                $value = trim((string) (new Settings($this->db))->get('selected_school_year', '')) ?: null;
             }
 
             $bindings[$column] = $value;

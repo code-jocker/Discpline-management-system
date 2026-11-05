@@ -885,6 +885,6 @@ require_once __DIR__ . '/includes/header.php';
             canExpel: <?= !empty($is_headteacher_or_admin) ? 'true' : 'false' ?>
         };
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <audio id="notificationSound" src="<?= e(app_base_url()) ?>/assets/audio/notification.mp3" preload="auto"></audio>
+    <script src="<?= e(app_base_url()) ?>/assets/vendor/chart.umd.min.js"></script>
+    <audio id="notificationSound" src="<?= e(app_base_url()) ?>/assets/audio/notification.wav" preload="auto"></audio>
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

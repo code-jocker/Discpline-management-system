@@ -750,6 +750,11 @@ body.sheet-open {
         padding: 0;
     }
 
+    .sheet-backdrop.hidden,
+    body.students-body .modal-backdrop.hidden {
+        display: none;
+    }
+
     .sheet-panel {
         width: 100%;
         max-width: none;

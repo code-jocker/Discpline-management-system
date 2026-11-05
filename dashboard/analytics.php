@@ -204,7 +204,7 @@ require_once dirname(__DIR__) . '/includes/header.php';
             </aside>
         </section>
 
-        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        <script src="<?= e(app_base_url()) ?>/assets/vendor/chart.umd.min.js"></script>
         <script>
         (function () {
             const baseUrl = '<?= e(app_base_url()) ?>';

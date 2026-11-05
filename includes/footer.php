@@ -8,10 +8,11 @@
         </main>
     </div>
 
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <script src="<?= e(app_base_url()) ?>/assets/vendor/jquery-3.7.1.min.js"></script>
     <?php 
     $viteFooterAssets = $viteFooterAssets ?? [];
     vite_tags($viteFooterAssets); 
     ?>
+    <script src="<?= htmlspecialchars(vite_asset('assets/js/toast.js')) ?>?v=<?= (int) (@filemtime(dirname(__DIR__) . '/assets/js/toast.js') ?: 1) ?>"></script>
 </body>
 </html>

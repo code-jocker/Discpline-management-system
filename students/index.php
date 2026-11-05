@@ -14,8 +14,11 @@ $controller = new StudentController();
 // Load initial data for filters and modals
 $initialData       = $controller->indexData();
 $categories        = $initialData['categories'] ?? [];
-$classes           = $initialData['classes'] ?? [];
-$teachers          = $initialData['teachers'] ?? [];
+$classes            = $initialData['classes'] ?? [];
+$teachers           = $initialData['teachers'] ?? [];
+$streams            = $initialData['streams'] ?? [];
+$dormitories        = $initialData['dormitories'] ?? [];
+$schoolYears        = $initialData['school_years'] ?? [];
 $authUser          = current_auth_user();
 $canManageStudents = $controller->canManageStudents($authUser);
 $canManageStructure = !empty($authUser) && isset($authUser['id']) && (new User(Database::connection()))->userHasPrivilegedRole((int) $authUser['id']);
@@ -40,54 +43,176 @@ $viteAssets = ['assets/css/student-management.css', 'assets/css/student-id-card.
 $viteFooterAssets = ['assets/js/theme.js'];
 require_once dirname(__DIR__) . '/includes/header.php';
 ?>
-        <section class="hero-card hero-compact">
-            <div class="hero-copy">
-                <p class="eyebrow">SBMS Module</p>
+        <?php
+        $directoryStats = $initialData['stats'] ?? [];
+        $maxMarks = max(1, (int) ($settingsModel->get('max_marks_per_term', 40) ?: 40));
+        $categoryCount = [];
+        foreach (($directoryStats['categories'] ?? []) as $categoryRow) {
+            $categoryCount[(int) $categoryRow['id']] = (int) $categoryRow['total'];
+        }
+        $activeCount = (int) ($directoryStats['active'] ?? 0);
+        $totalCount = (int) ($directoryStats['total'] ?? 0);
+        $avgConduct = $directoryStats['avg_conduct'] ?? null;
+        $highRiskCount = (int) ($directoryStats['high_risk'] ?? 0);
+        $juniorName = $categories[0]['name'] ?? 'Junior';
+        $seniorName = $categories[1]['name'] ?? 'Senior';
+        $juniorCount = (int) ($categoryCount[(int) ($categories[0]['id'] ?? 0)] ?? 0);
+        $seniorCount = (int) ($categoryCount[(int) ($categories[1]['id'] ?? 0)] ?? 0);
+        ?>
+
+        <header class="sd-page-head">
+            <div class="sd-page-title">
+                <p class="eyebrow">Student records</p>
                 <h1>Student directory</h1>
-                <p class="hero-text">Search learners, edit records and print identity cards.</p>
+                <p>Search, filter and manage every learner from one workspace.</p>
             </div>
-            <div class="hero-actions">
+            <div class="sd-page-actions">
                 <?php if ($canManageStudents): ?>
-                    <button type="button" class="ghost-btn" id="openUploadModal">Import</button>
-                    <button type="button" class="primary-btn" id="openStudentModal">Add Student</button>
+                    <button type="button" class="sd-btn sd-btn--ghost" id="openUploadModal">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 20h16"/></svg>
+                        Import students
+                    </button>
+                    <button type="button" class="sd-btn sd-btn--primary" id="openStudentModal">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                        Add student
+                    </button>
+                <?php endif; ?>
+                <?php if ($canManageStructure): ?>
+                    <button type="button" class="sd-btn sd-btn--danger" id="deleteAllStudentsBtn" title="Delete every student record">
+                        Restricted
+                    </button>
                 <?php endif; ?>
             </div>
+        </header>
+
+        <section class="sd-stats" aria-label="Student statistics">
+            <article class="sd-stat" data-stat="total">
+                <span class="sd-stat-icon">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 19v-1a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v1"/><circle cx="10" cy="7" r="3"/><path d="M20 19v-1a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                </span>
+                <div>
+                    <p class="sd-stat-label">Total students</p>
+                    <p class="sd-stat-value" id="statTotalValue"><?= number_format($totalCount) ?></p>
+                    <p class="sd-stat-sub" id="statTotalSub"><?= number_format($activeCount) ?> active &middot; avg conduct <?= $avgConduct !== null ? e(number_format((float) $avgConduct, 1)) . '/' . $maxMarks : '—' ?></p>
+                </div>
+            </article>
+            <article class="sd-stat" data-stat="category" data-category-id="<?= e((string) ($categories[0]['id'] ?? '')) ?>">
+                <span class="sd-stat-icon sd-stat-icon--indigo">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19h16"/><path d="M7 16V9"/><path d="M12 16V5"/><path d="M17 16v-7"/></svg>
+                </span>
+                <div>
+                    <p class="sd-stat-label" id="statJuniorLabel"><?= e($juniorName) ?></p>
+                    <p class="sd-stat-value" id="statJuniorValue"><?= number_format($juniorCount) ?></p>
+                    <p class="sd-stat-sub">Active learners in this level</p>
+                </div>
+            </article>
+            <article class="sd-stat" data-stat="category" data-category-id="<?= e((string) ($categories[1]['id'] ?? '')) ?>">
+                <span class="sd-stat-icon sd-stat-icon--teal">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 20l7-7 4 4 7-9"/><path d="M14 8h7v7"/></svg>
+                </span>
+                <div>
+                    <p class="sd-stat-label" id="statSeniorLabel"><?= e($seniorName) ?></p>
+                    <p class="sd-stat-value" id="statSeniorValue"><?= number_format($seniorCount) ?></p>
+                    <p class="sd-stat-sub">Active learners in this level</p>
+                </div>
+            </article>
+            <article class="sd-stat sd-stat--alert">
+                <span class="sd-stat-icon sd-stat-icon--gold">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 2.5 20h19L12 3Z"/><path d="M12 9v5"/><path d="M12 17h.01"/></svg>
+                </span>
+                <div>
+                    <p class="sd-stat-label">High risk</p>
+                    <p class="sd-stat-value" id="statRiskValue"><?= number_format($highRiskCount) ?></p>
+                    <p class="sd-stat-sub">Needs pastoral follow-up</p>
+                </div>
+            </article>
         </section>
 
-        <?php if ($canManageStudents): ?>
-            <div class="directory-danger">
-                <button type="button" class="link-danger" id="deleteAllStudentsBtn">Delete all students</button>
+        <section class="sd-filter-card" aria-label="Student filters">
+            <div class="sd-filter-head">
+                <div>
+                    <p class="sd-filter-eyebrow">Directory filters</p>
+                    <h2>Find a student</h2>
+                </div>
+                <button type="button" class="sd-filter-clear" id="clearFiltersBtn">Clear all</button>
             </div>
-        <?php endif; ?>
 
-        <section class="filter-bar" aria-label="Student filters">
-            <div class="field filter-search">
-                <label for="searchFilter">Search</label>
-                <input type="search" id="searchFilter" placeholder="Name, code or ID" autocomplete="off">
-            </div>
-            <div class="field">
-                <label for="classFilter">Class</label>
-                <select id="classFilter">
-                    <option value="">All classes</option>
-                    <?php foreach ($classes as $class): ?>
-                        <option value="<?= e((string) $class['id']) ?>"><?= e($class['name']) ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="field">
-                <label for="categoryFilter">Level</label>
-                <select id="categoryFilter">
-                    <option value="">All levels</option>
-                    <?php foreach ($categories as $category): ?>
-                        <option value="<?= e((string) $category['id']) ?>"><?= e($category['name']) ?></option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="field filter-spacer" aria-hidden="true"></div>
-            <div class="field filter-actions">
-                <button type="button" class="ghost-btn" id="expandAllBtn">Show all</button>
-                <button type="button" class="ghost-btn" id="collapseAllBtn">Hide all</button>
-                <button type="button" class="ghost-btn" id="refreshStudentsBtn">Refresh</button>
+            <div class="sd-filter-grid">
+                <div class="sd-field sd-field--search">
+                    <label for="searchFilter">Search</label>
+                    <span class="sd-search-shell">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
+                        <input type="search" id="searchFilter" placeholder="Name, admission number or student code" autocomplete="off">
+                    </span>
+                </div>
+
+                <div class="sd-field">
+                    <label for="academicYearFilter">Academic year</label>
+                    <select id="academicYearFilter">
+                        <option value="">All years</option>
+                        <?php foreach ($schoolYears as $year): ?>
+                            <option value="<?= e($year) ?>" <?= $year === ($schoolIdentity['year'] ?? '') ? 'selected' : '' ?>><?= e($year) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="sd-field">
+                    <label for="categoryFilter">Level</label>
+                    <select id="categoryFilter">
+                        <option value="">All levels</option>
+                        <?php foreach ($categories as $category): ?>
+                            <option value="<?= e((string) $category['id']) ?>"><?= e($category['name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="sd-field">
+                    <label for="classFilter">Class</label>
+                    <select id="classFilter">
+                        <option value="">All classes</option>
+                        <?php foreach ($classes as $class): ?>
+                            <option value="<?= e((string) $class['id']) ?>" data-category-id="<?= e((string) $class['category_id']) ?>"><?= e($class['name']) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="sd-field">
+                    <label for="streamFilter">Stream</label>
+                    <select id="streamFilter">
+                        <option value="">All streams</option>
+                        <?php foreach ($streams as $stream): ?>
+                            <option value="<?= e($stream) ?>"><?= e($stream) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="sd-field">
+                    <label for="dormitoryFilter">Dormitory</label>
+                    <select id="dormitoryFilter">
+                        <option value="">All dormitories</option>
+                        <?php foreach ($dormitories as $dormitory): ?>
+                            <option value="<?= e($dormitory) ?>"><?= e($dormitory) ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="sd-field">
+                    <label for="statusFilter">Status</label>
+                    <select id="statusFilter">
+                        <option value="">All statuses</option>
+                        <option value="active">Active</option>
+                        <option value="transferred">Transferred</option>
+                        <option value="graduated">Graduated</option>
+                        <option value="archived">Archived</option>
+                    </select>
+                </div>
+
+                <div class="sd-field sd-field--refresh">
+                    <button type="button" class="sd-btn sd-btn--light" id="refreshStudentsBtn">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg>
+                        Refresh
+                    </button>
+                </div>
             </div>
         </section>
 
@@ -98,32 +223,59 @@ require_once dirname(__DIR__) . '/includes/header.php';
         </nav>
 
         <div id="tab-students" class="tab-content active">
-            <section class="dashboard-grid">
-            
-            <article class="table-card">
-                <div class="section-heading table-header">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--brand-2, #38bdf8)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                            <circle cx="9" cy="7" r="4"></circle>
-                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                        </svg>
-                        <div>
-                            <p class="eyebrow">Students</p>
-                            <h2>Directory</h2>
-                        </div>
+            <section class="sd-table-card">
+                <div class="sd-table-head">
+                    <div>
+                        <p class="eyebrow">Student records</p>
+                        <h2>All students</h2>
                     </div>
-                    <div id="tableMeta" class="table-meta">Loading records...</div>
+                    <div class="sd-scope" role="group" aria-label="Filter by education level">
+                        <button type="button" class="sd-scope-btn is-active" data-scope="">All</button>
+                        <?php foreach ($categories as $index => $category): ?>
+                            <button type="button" class="sd-scope-btn" data-scope="<?= e((string) $category['id']) ?>"><?= $index === 0 ? 'Junior' : ($index === 1 ? 'Senior' : e($category['name'])) ?></button>
+                        <?php endforeach; ?>
+                    </div>
                 </div>
 
                 <div id="tableFeedback" class="table-feedback" role="alert" aria-live="polite"></div>
 
-                <div id="studentAccordionContainer" style="display: flex; flex-direction: column; gap: 1rem;">
-                    <div class="table-placeholder">Loading students...</div>
+                <div class="sd-table-wrap">
+                    <table class="sd-table" id="studentTable">
+                        <thead>
+                            <tr>
+                                <th scope="col" aria-sort="none"><button type="button" class="sd-sort" data-sort="name">Student <span aria-hidden="true"></span></button></th>
+                                <th scope="col" aria-sort="none"><button type="button" class="sd-sort" data-sort="admission">Admission No. <span aria-hidden="true"></span></button></th>
+                                <th scope="col" aria-sort="none"><button type="button" class="sd-sort" data-sort="class">Class <span aria-hidden="true"></span></button></th>
+                                <th scope="col" aria-sort="none"><button type="button" class="sd-sort" data-sort="stream">Stream <span aria-hidden="true"></span></button></th>
+                                <th scope="col" aria-sort="none"><button type="button" class="sd-sort" data-sort="dormitory">Dormitory <span aria-hidden="true"></span></button></th>
+                                <th scope="col" aria-sort="none"><button type="button" class="sd-sort" data-sort="conduct">Conduct <span aria-hidden="true"></span></button></th>
+                                <th scope="col" aria-sort="none"><button type="button" class="sd-sort" data-sort="risk">Risk <span aria-hidden="true"></span></button></th>
+                                <th scope="col" aria-sort="none"><button type="button" class="sd-sort" data-sort="status">Status <span aria-hidden="true"></span></button></th>
+                                <th scope="col" class="sd-actions-col">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="studentTableBody">
+                            <tr>
+                                <td colspan="9" class="sd-loading-cell">
+                                    <span class="sd-spinner" aria-hidden="true"></span>
+                                    Loading student records…
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
-            </article>
 
+                <div class="sd-table-foot">
+                    <div id="tableMeta" class="table-meta">Loading records…</div>
+                    <div class="sd-pagination" id="studentPagination"></div>
+                    <label class="sd-page-size" for="pageSize">Rows
+                        <select id="pageSize">
+                            <option value="10">10</option>
+                            <option value="25" selected>25</option>
+                            <option value="50">50</option>
+                        </select>
+                    </label>
+                </div>
             </section>
         </div>
 
@@ -187,28 +339,103 @@ require_once dirname(__DIR__) . '/includes/header.php';
     </div>
 
     <div class="sheet-backdrop hidden" id="studentSheet" role="dialog" aria-modal="true" aria-labelledby="sheetName">
-        <div class="sheet-panel">
+        <div class="sheet-panel sd-profile-panel">
             <div class="sheet-grip" aria-hidden="true"></div>
-            <div class="sheet-header">
-                <div>
-                    <p class="eyebrow">Student</p>
-                    <h2 id="sheetName">Student</h2>
+            <div class="sheet-header sd-profile-head">
+                <div class="sd-profile-identity">
+                    <div class="sd-avatar sd-avatar--lg" id="sheetAvatar" aria-hidden="true"></div>
+                    <div>
+                        <p class="eyebrow">Student profile</p>
+                        <h2 id="sheetName">Student</h2>
+                        <div class="sd-badges" id="sheetBadges"></div>
+                    </div>
                 </div>
                 <button type="button" class="icon-btn" id="closeStudentSheet" aria-label="Close student details">&times;</button>
             </div>
-            <div class="sheet-body">
-                <div class="sheet-card" id="sheetCard" hidden>
-                    <iframe id="sheetCardFrame" title="Identity card preview" loading="lazy"></iframe>
+            <div class="sheet-body sd-profile-body">
+                <div id="sheetLoading" class="sd-profile-loading">
+                    <span class="sd-spinner" aria-hidden="true"></span>
+                    Loading profile…
                 </div>
-                <dl class="sheet-facts" id="sheetFacts"></dl>
+                <div class="sd-profile-grid" id="sheetContent" hidden>
+                    <div class="sd-profile-main">
+                        <section class="sd-panel">
+                            <h3>Overview</h3>
+                            <dl class="sheet-facts" id="sheetFacts"></dl>
+                        </section>
+                        <section class="sd-panel">
+                            <h3>Parent &amp; guardian contacts</h3>
+                            <div id="sheetContacts" class="sd-contact-list"></div>
+                        </section>
+                        <section class="sd-panel">
+                            <h3>Academic &amp; conduct</h3>
+                            <div id="sheetAcademic"></div>
+                        </section>
+                        <section class="sd-panel">
+                            <h3>Discipline history</h3>
+                            <div id="sheetDiscipline"></div>
+                        </section>
+                    </div>
+                    <aside class="sd-profile-side">
+                        <div class="sheet-card" id="sheetCard" hidden>
+                            <iframe id="sheetCardFrame" title="Identity card preview" loading="lazy"></iframe>
+                        </div>
+                        <section class="sd-panel">
+                            <h3>Rewards &amp; recognition</h3>
+                            <div id="sheetRewards"></div>
+                        </section>
+                    </aside>
+                </div>
             </div>
-            <div class="sheet-actions">
-                <a class="primary-btn" id="sheetPrintBtn" href="#" target="_blank" rel="noreferrer" hidden>Print card</a>
-                <button type="button" class="ghost-btn" id="sheetEditBtn" hidden>Edit</button>
-                <button type="button" class="ghost-btn danger" id="sheetDeleteBtn" hidden>Delete</button>
+            <div class="sheet-actions sd-profile-actions">
+                <div class="sd-lifecycle-actions" id="sheetLifecycleActions" hidden>
+                    <button type="button" class="ghost-btn" data-lifecycle="promote">Promote</button>
+                    <button type="button" class="ghost-btn" data-lifecycle="transfer">Transfer</button>
+                    <button type="button" class="ghost-btn" data-lifecycle="graduate">Graduate</button>
+                    <button type="button" class="ghost-btn" data-lifecycle="archive">Archive</button>
+                    <button type="button" class="ghost-btn" data-lifecycle="reactivate">Reactivate</button>
+                </div>
+                <div class="sd-profile-primary-actions">
+                    <a class="primary-btn" id="sheetPrintBtn" href="#" target="_blank" rel="noreferrer" hidden>Print card</a>
+                    <button type="button" class="ghost-btn" id="sheetEditBtn" hidden>Edit</button>
+                    <button type="button" class="ghost-btn danger" id="sheetDeleteBtn" hidden>Delete</button>
+                </div>
             </div>
         </div>
     </div>
+
+    <?php if ($canManageStructure): ?>
+        <div class="modal-backdrop hidden" id="lifecycleModal" role="dialog" aria-modal="true" aria-labelledby="lifecycleTitle">
+            <div class="modal-panel sd-lifecycle-modal">
+                <div class="modal-header">
+                    <div>
+                        <p class="eyebrow">Lifecycle action</p>
+                        <h2 id="lifecycleTitle">Update student status</h2>
+                        <p class="sd-modal-sub" id="lifecycleStudentName"></p>
+                    </div>
+                    <button type="button" class="icon-btn" id="closeLifecycleModal" aria-label="Close lifecycle dialog">&times;</button>
+                </div>
+
+                <form id="lifecycleForm" class="student-form" method="post" novalidate>
+                    <?= csrf_input() ?>
+                    <input type="hidden" name="id" id="lifecycleStudentId">
+                    <input type="hidden" name="action" id="lifecycleAction">
+
+                    <div id="lifecycleFields"></div>
+
+                    <div id="lifecycleFeedback" class="form-feedback" role="alert" aria-live="polite"></div>
+
+                    <div class="modal-actions">
+                        <button type="button" class="ghost-btn" id="cancelLifecycleModal">Cancel</button>
+                        <button type="submit" class="primary-btn" id="lifecycleSubmitBtn">
+                            <span class="btn-label">Apply action</span>
+                            <span class="btn-loader" hidden></span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    <?php endif; ?>
 
     <?php if ($canManageStudents): ?>
         <div class="modal-backdrop hidden" id="studentModal">
@@ -275,6 +502,28 @@ require_once dirname(__DIR__) . '/includes/header.php';
                     <div class="field">
                         <label for="address">Home address</label>
                         <input type="text" id="address" name="address" maxlength="255" placeholder="Street, city">
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="field">
+                            <label for="stream">Stream</label>
+                            <input type="text" id="stream" name="stream" maxlength="40" placeholder="e.g. A">
+                        </div>
+
+                        <div class="field">
+                            <label for="dormitory">Dormitory</label>
+                            <input type="text" id="dormitory" name="dormitory" maxlength="60" placeholder="e.g. Kilimanjaro">
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label for="schoolYear">Academic year</label>
+                        <input type="text" id="schoolYear" name="school_year" list="schoolYearOptions" placeholder="e.g. <?= e((string) ($schoolIdentity['year'] ?: '2026-2027')) ?>" pattern="\d{4}-\d{4}">
+                        <datalist id="schoolYearOptions">
+                            <?php foreach ($schoolYears as $year): ?>
+                                <option value="<?= e($year) ?>"></option>
+                            <?php endforeach; ?>
+                        </datalist>
                     </div>
 
                     <div class="field">
@@ -553,6 +802,10 @@ require_once dirname(__DIR__) . '/includes/header.php';
             updateUrl: '<?= e(app_base_url()) ?>/students/update.php',
             deleteUrl: '<?= e(app_base_url()) ?>/students/delete.php',
             importUrl: '<?= e(app_base_url()) ?>/students/import.php',
+            detailUrl: '<?= e(app_base_url()) ?>/students/detail.php',
+            lifecycleUrl: '<?= e(app_base_url()) ?>/students/lifecycle.php',
+            currentYear: <?= json_encode((string) ($schoolIdentity['year'] ?? ''), JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>,
+            maxMarks: <?= (int) $maxMarks ?>,
 
             classFetchUrl: '<?= e(app_base_url()) ?>/classes/fetch.php',
             classCreateUrl: '<?= e(app_base_url()) ?>/classes/create.php',
@@ -570,7 +823,7 @@ require_once dirname(__DIR__) . '/includes/header.php';
             csrfToken: '<?= e(csrf_token()) ?>'
         };
     </script>
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+    <script src="<?= e(app_base_url()) ?>/assets/vendor/jquery-3.7.1.min.js"></script>
     <script src="<?= e(app_base_url()) ?>/assets/js/student-management.js?v=<?= time() ?>"></script>
 </body>
 </html>

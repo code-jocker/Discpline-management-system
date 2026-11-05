@@ -35,6 +35,26 @@
     z-index: 1;
 }
 
+/* Overlays live directly on <body> and must keep their own fixed layer. */
+.sbms-plexus-body > .sheet-backdrop {
+    position: fixed;
+    z-index: 60;
+}
+
+.sbms-plexus-body > .modal-backdrop {
+    position: fixed;
+    z-index: 500;
+}
+
+.sbms-plexus-body > .sbms-toast-region {
+    position: fixed;
+    z-index: var(--sbms-z-toast, 900);
+}
+
+.sbms-plexus-body > .sbms-skip-link {
+    position: fixed;
+}
+
 @keyframes sbmsPlexusFadeIn {
     from {
         opacity: 0;

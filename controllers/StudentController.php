@@ -52,10 +52,17 @@ final class StudentController
             ]);
             $teachers = $teacherStatement->fetchAll();
 
+            $options = $this->studentRepository->filterOptions();
+            $stats = $this->studentRepository->stats();
+
             return [
                 'categories' => $this->categories->all(),
                 'classes' => $this->classes->all(),
                 'teachers' => $teachers,
+                'streams' => $options['streams'] ?? [],
+                'dormitories' => $options['dormitories'] ?? [],
+                'school_years' => $options['school_years'] ?? [],
+                'stats' => $stats,
             ];
         } catch (Throwable $exception) {
             Database::logError('Student index data load failed', ['exception' => $exception->getMessage()]);
@@ -63,6 +70,10 @@ final class StudentController
                 'categories' => [],
                 'classes' => [],
                 'teachers' => [],
+                'streams' => [],
+                'dormitories' => [],
+                'school_years' => [],
+                'stats' => [],
             ];
         }
     }
@@ -141,6 +152,11 @@ final class StudentController
     public function fetch(array $params): array
     {
         try {
+            $status = (string) ($params['status'] ?? '');
+            if (!in_array($status, ['active', 'transferred', 'graduated', 'archived'], true)) {
+                $status = '';
+            }
+
             $filters = [
                 'class_id' => isset($params['class_id']) && ctype_digit((string) $params['class_id'])
                     ? (int) $params['class_id']
@@ -148,11 +164,17 @@ final class StudentController
                 'category_id' => isset($params['category_id']) && ctype_digit((string) $params['category_id'])
                     ? (int) $params['category_id']
                     : null,
-                'search' => isset($params['search']) ? trim($params['search']) : null,
+                'search' => isset($params['search']) ? trim((string) $params['search']) : null,
+                'stream' => trim((string) ($params['stream'] ?? '')),
+                'dormitory' => trim((string) ($params['dormitory'] ?? '')),
+                'status' => $status,
+                'school_year' => trim((string) ($params['school_year'] ?? '')),
+                'sort' => (string) ($params['sort'] ?? 'class'),
+                'dir' => strtolower((string) ($params['dir'] ?? 'asc')) === 'desc' ? 'desc' : 'asc',
             ];
 
             $page = max(1, (int) ($params['page'] ?? 1));
-            $limit = max(1, min((int) ($params['limit'] ?? 10000), 10000));
+            $limit = max(1, min((int) ($params['limit'] ?? 25), 200));
             $offset = ($page - 1) * $limit;
 
             $students = $this->studentRepository->paginate($filters, $limit, $offset);
@@ -168,6 +190,7 @@ final class StudentController
                         'total' => $total,
                         'pages' => max(1, (int) ceil($total / $limit)),
                     ],
+                    'stats' => $this->studentRepository->stats(),
                 ],
             ];
         } catch (Throwable $exception) {
@@ -175,6 +198,191 @@ final class StudentController
             return [
                 'status' => 'error',
                 'message' => 'Failed to fetch students.',
+            ];
+        }
+    }
+
+    public function detail(int $studentId): array
+    {
+        try {
+            $student = $this->studentRepository->findDetailed($studentId);
+            if ($student === null) {
+                return [
+                    'status' => 'error',
+                    'message' => 'Student not found.',
+                ];
+            }
+
+            return [
+                'status' => 'success',
+                'data' => $student,
+            ];
+        } catch (Throwable $exception) {
+            Database::logError('Student detail failed', ['exception' => $exception->getMessage(), 'student_id' => $studentId]);
+            return [
+                'status' => 'error',
+                'message' => 'Unable to load the student profile.',
+            ];
+        }
+    }
+
+    public function canManageStructure(?array $authUser): bool
+    {
+        if (!$authUser || empty($authUser['id'])) {
+            return false;
+        }
+
+        return $this->users->userHasPrivilegedRole((int) $authUser['id']);
+    }
+
+    /**
+     * Transfer, promote, graduate, archive or reactivate a student.
+     * Only privileged roles may change lifecycle state; every change is audited.
+     */
+    public function lifecycle(array $data, ?array $authUser): array
+    {
+        if (!$this->canManageStructure($authUser)) {
+            return [
+                'status' => 'error',
+                'message' => 'You do not have permission to change a student lifecycle state.',
+            ];
+        }
+
+        if (empty($data['id']) || !ctype_digit((string) $data['id'])) {
+            return [
+                'status' => 'error',
+                'message' => 'A valid student is required.',
+            ];
+        }
+
+        if (!Database::columnExists('students', 'status')) {
+            return [
+                'status' => 'error',
+                'message' => 'Run database/migration_student_directory.sql before using lifecycle actions.',
+            ];
+        }
+
+        $studentId = (int) $data['id'];
+        $action = (string) ($data['action'] ?? '');
+        $allowed = ['transfer', 'promote', 'graduate', 'archive', 'reactivate'];
+        if (!in_array($action, $allowed, true)) {
+            return [
+                'status' => 'error',
+                'message' => 'Unknown lifecycle action.',
+            ];
+        }
+
+        $existing = $this->students->find($studentId);
+        if (!$existing) {
+            return [
+                'status' => 'error',
+                'message' => 'Student not found.',
+            ];
+        }
+
+        try {
+            $this->db->beginTransaction();
+            $context = ['action' => $action];
+
+            if ($action === 'promote') {
+                $targetClassId = isset($data['class_id']) ? (int) $data['class_id'] : 0;
+                $classStatement = $this->db->prepare('SELECT id, name, category_id FROM classes WHERE id = :id LIMIT 1');
+                $classStatement->execute(['id' => $targetClassId]);
+                $targetClass = $classStatement->fetch();
+                if (!$targetClass) {
+                    $this->db->rollBack();
+                    return ['status' => 'error', 'message' => 'Select a valid destination class.'];
+                }
+
+                $schoolYear = trim((string) ($data['school_year'] ?? ''));
+                if ($schoolYear !== '' && !preg_match('/^\d{4}-\d{4}$/', $schoolYear)) {
+                    $this->db->rollBack();
+                    return ['status' => 'error', 'message' => 'Academic year must look like 2026-2027.'];
+                }
+
+                $payload = [
+                    'full_name' => $existing['full_name'],
+                    'class_id' => (int) $targetClass['id'],
+                    'category_id' => (int) $targetClass['category_id'],
+                    'parent_contact' => $existing['parent_contact'] ?? '',
+                    'date_of_birth' => $existing['date_of_birth'] ?? null,
+                    'address' => $existing['address'] ?? null,
+                    'photo_path' => $existing['photo_path'] ?? null,
+                    'stream' => $existing['stream'] ?? null,
+                    'dormitory' => $existing['dormitory'] ?? null,
+                    'school_year' => $schoolYear !== '' ? $schoolYear : ($existing['school_year'] ?? null),
+                ];
+                $this->students->update($studentId, $payload);
+
+                $statusStatement = $this->db->prepare(
+                    "UPDATE students SET status = 'active' WHERE id = :id"
+                );
+                $statusStatement->execute(['id' => $studentId]);
+
+                $context['from_class'] = $existing['class_name'] ?? null;
+                $context['to_class'] = $targetClass['name'];
+                $context['school_year'] = $payload['school_year'];
+                $message = 'Student promoted to ' . $targetClass['name'] . '.';
+            } else {
+                $statusMap = [
+                    'transfer' => 'transferred',
+                    'graduate' => 'graduated',
+                    'archive' => 'archived',
+                    'reactivate' => 'active',
+                ];
+                $newStatus = $statusMap[$action];
+
+                if ($action === 'transfer' && trim((string) ($data['destination'] ?? '')) === '') {
+                    $this->db->rollBack();
+                    return ['status' => 'error', 'message' => 'Enter the receiving school for a transfer.'];
+                }
+
+                $statusStatement = $this->db->prepare(
+                    'UPDATE students SET status = :status WHERE id = :id'
+                );
+                $statusStatement->execute(['status' => $newStatus, 'id' => $studentId]);
+
+                $context['from_status'] = $existing['status'] ?? null;
+                $context['to_status'] = $newStatus;
+                $context['note'] = trim((string) ($data['note'] ?? ''));
+                if ($action === 'transfer') {
+                    $context['destination'] = trim((string) $data['destination']);
+                }
+                $message = match ($action) {
+                    'transfer' => 'Student marked as transferred.',
+                    'graduate' => 'Student marked as graduated.',
+                    'archive' => 'Student archived.',
+                    'reactivate' => 'Student reactivated.',
+                };
+            }
+
+            $this->auditLogs->log(
+                $authUser['id'] ?? null,
+                'student_lifecycle',
+                'students',
+                $studentId,
+                $context
+            );
+
+            $this->db->commit();
+
+            return [
+                'status' => 'success',
+                'message' => $message,
+                'data' => ['status' => $action === 'promote' ? 'active' : ($statusMap[$action] ?? null)],
+            ];
+        } catch (Throwable $exception) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            Database::logError('Student lifecycle failed', [
+                'exception' => $exception->getMessage(),
+                'student_id' => $studentId,
+                'action' => $action,
+            ]);
+            return [
+                'status' => 'error',
+                'message' => 'Unable to update the student lifecycle state.',
             ];
         }
     }

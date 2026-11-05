@@ -548,23 +548,45 @@ class ParentNotificationService
             $method = $parent['contact_preference'] ?? 'email';
             $status = 'pending';
 
-            // Attempt delivery
+            // WhatsApp is handled by the durable whatsapp-web.js queue when the
+            // queue tables exist; the Node worker owns delivery and retries.
             $delivered = false;
-            if ($method === 'email' && !empty($parent['email'])) {
+            $queued = null;
+            if ($method === 'whatsapp' && !empty($parent['whatsapp_number'])) {
+                $queue = new WhatsAppQueueService($this->pdo);
+                if ($queue->isAvailable()) {
+                    $dedupeKey = $deductionId !== null
+                        ? $type . ':deduction-' . $deductionId . ':contact-' . (int) ($parent['id'] ?? 0)
+                        : null;
+                    $queued = $queue->enqueue(
+                        !empty($parent['student_id']) ? (int) $parent['student_id'] : null,
+                        (string) $parent['whatsapp_number'],
+                        $message,
+                        $type,
+                        $dedupeKey
+                    );
+                    if ($queued !== null) {
+                        $delivered = true;
+                        $method = 'whatsapp_queue';
+                    }
+                }
+
+                if ($queued === null) {
+                    $delivered = $this->sendWhatsApp($parent['whatsapp_number'], $message);
+                }
+            } elseif ($method === 'email' && !empty($parent['email'])) {
                 $delivered = $this->sendEmail($parent['email'], $subject, $message);
-            } elseif ($method === 'whatsapp' && !empty($parent['whatsapp_number'])) {
-                $delivered = $this->sendWhatsApp($parent['whatsapp_number'], $message);
             } elseif ($method === 'sms' && !empty($parent['phone_number'])) {
                 $delivered = $this->sendSMS($parent['phone_number'], $message);
             }
 
-            $status = $delivered ? 'sent' : 'failed';
+            $status = $queued !== null ? 'pending' : ($delivered ? 'sent' : 'failed');
 
             // Log notification
             $stmt = $this->pdo->prepare("
                 INSERT INTO parent_notifications_log 
-                (parent_contact_id, student_id, notification_type, subject, message_body, delivery_method, delivery_status, sent_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
+                (parent_contact_id, student_id, notification_type, subject, message_body, delivery_method, delivery_status, sent_at, failed_reason)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ");
 
             $stmt->execute([
@@ -574,7 +596,11 @@ class ParentNotificationService
                 $subject,
                 $message,
                 $method,
-                $status
+                $status,
+                $queued === null && $delivered ? date('Y-m-d H:i:s') : null,
+                $queued !== null
+                    ? 'Queued for WhatsApp worker (job #' . $queued . ')'
+                    : ($delivered ? null : 'Channel unavailable or delivery rejected')
             ]);
 
             return $delivered;

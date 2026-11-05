@@ -175,6 +175,7 @@ final class DisciplineController
                 }
 
                 $processedStudentCount = 0;
+                $pendingParentNotices = [];
                 foreach ($studentIds as $studentIdValue) {
                     $snapshot = $this->deductions->getStudentTermSnapshot($studentIdValue, $term['value'], true);
                     if (!$snapshot) {
@@ -212,7 +213,7 @@ final class DisciplineController
                         ? -abs($effectiveMarksForStudent)
                         : abs($effectiveMarksForStudent);
 
-                    $this->deductions->insertHistory(
+                    $historyId = $this->deductions->insertHistory(
                         $studentIdValue,
                         $term['value'],
                         $actualMarksDelta,
@@ -222,6 +223,16 @@ final class DisciplineController
                         $incidentCategory !== '' ? $incidentCategory : null
                     );
                     $this->deductions->applyMarksDeduction($studentIdValue, $term['value'], $actualMarksDelta);
+
+                    if ($actionType !== 'set') {
+                        $pendingParentNotices[] = [
+                            'student_id' => (int) $studentIdValue,
+                            'deduction_id' => $historyId,
+                            'marks' => (int) $effectiveMarksForStudent,
+                            'reason' => $reason,
+                            'action' => $actionType,
+                        ];
+                    }
 
                     try {
                         $riskService = new RiskEngineService($this->db);
@@ -264,6 +275,8 @@ final class DisciplineController
                 );
 
                 $this->db->commit();
+
+                $this->notifyParentsAfterMarksChange($pendingParentNotices, $term['value']);
 
                 return [
                     'status' => 'success',
@@ -351,7 +364,7 @@ final class DisciplineController
                 ? -abs($effectiveMarksForStudent)
                 : abs($effectiveMarksForStudent);
 
-            $this->deductions->insertHistory(
+            $historyId = $this->deductions->insertHistory(
                 $studentId['value'],
                 $term['value'],
                 $actualMarksDelta,
@@ -404,6 +417,13 @@ final class DisciplineController
 
             $this->db->commit();
             $this->syncLowMarksLetter($studentId['value'], $term['value'], $updatedMarks, $reason);
+            $this->notifyParentsAfterMarksChange([[
+                'student_id' => (int) $studentId['value'],
+                'deduction_id' => $historyId,
+                'marks' => (int) $effectiveMarksForStudent,
+                'reason' => $reason,
+                'action' => $actionType,
+            ]], $term['value']);
 
             return [
                 'status' => 'success',
@@ -608,6 +628,47 @@ final class DisciplineController
             'status' => 'error',
             'message' => $message,
         ];
+    }
+
+    /**
+     * Fan-out to parent channels happens after the DB commit so a missing email
+     * gateway or WhatsApp worker can never roll back a saved discipline action.
+     *
+     * @param array<int,array{student_id:int,deduction_id:int,marks:int,reason:string,action:string}> $notices
+     */
+    private function notifyParentsAfterMarksChange(array $notices, int $term): void
+    {
+        if ($notices === []) {
+            return;
+        }
+
+        try {
+            $service = new \App\Services\ParentNotificationService($this->db);
+            foreach ($notices as $notice) {
+                if ((int) $notice['marks'] <= 0) {
+                    continue;
+                }
+
+                if ($notice['action'] === 'add') {
+                    $service->notifyParentsOfAchievement(
+                        (int) $notice['student_id'],
+                        sprintf('Marks rewarded in term %d', $term)
+                    );
+                    continue;
+                }
+
+                $service->notifyParentsOfIncident(
+                    (int) $notice['student_id'],
+                    (int) $notice['deduction_id'],
+                    (string) $notice['reason'],
+                    (int) $notice['marks']
+                );
+            }
+        } catch (Throwable $exception) {
+            Database::logError('Parent notification fan-out failed', [
+                'exception' => $exception->getMessage(),
+            ]);
+        }
     }
 
     private function syncLowMarksLetter(int $studentId, int $term, int $updatedMarks, string $reason = ''): void
