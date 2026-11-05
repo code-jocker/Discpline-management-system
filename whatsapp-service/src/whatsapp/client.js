@@ -11,6 +11,7 @@
 const path = require('path');
 const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcodeTerminal = require('qrcode-terminal');
+const QRCode = require('qrcode');
 
 // Resolved from this file, never from process.cwd(), so PM2/systemd/nginx
 // helpers started from another directory still reuse the same WhatsApp session.
@@ -29,6 +30,13 @@ const state = {
   lastQrAt: null
 };
 
+/**
+ * Latest QR as a PNG data URL, for the browser linking page. Kept out of the
+ * health payload because the health JSON is consumed by PHP and logged.
+ * @type {{dataUrl: string, at: string}|null}
+ */
+let latestQr = null;
+
 const client = new Client({
   authStrategy: new LocalAuth({
     clientId: 'sbms-school',
@@ -46,6 +54,13 @@ const client = new Client({
 
 client.on('qr', (qr) => {
   state.lastQrAt = new Date().toISOString();
+  QRCode.toDataURL(qr, { margin: 1, width: 320 })
+    .then((dataUrl) => {
+      latestQr = { dataUrl, at: state.lastQrAt };
+    })
+    .catch((err) => {
+      console.warn('[whatsapp] could not render QR image:', err.message);
+    });
   console.log('[whatsapp] Scan this QR code with the school phone:');
   console.log('[whatsapp] WhatsApp > Linked Devices > Link a Device');
   qrcodeTerminal.generate(qr, { small: true });
@@ -53,6 +68,7 @@ client.on('qr', (qr) => {
 
 client.on('authenticated', () => {
   state.authenticated = true;
+  latestQr = null;
   console.log('[whatsapp] authenticated, downloading session...');
 });
 
@@ -60,6 +76,7 @@ client.on('ready', () => {
   state.ready = true;
   state.authenticated = true;
   state.lastDisconnectedReason = null;
+  latestQr = null;
   console.log('[whatsapp] client is ready');
 });
 
@@ -91,6 +108,14 @@ function getState() {
 }
 
 /**
+ * Latest QR for the linking page. Null once the session is authenticated.
+ * @returns {{dataUrl: string, at: string}|null}
+ */
+function getQrPayload() {
+  return latestQr;
+}
+
+/**
  * Boots the embedded browser session. Safe to call once at startup.
  * @returns {Promise<void>}
  */
@@ -116,5 +141,6 @@ module.exports = {
   destroy,
   isWhatsAppReady,
   getState,
+  getQrPayload,
   AUTH_DATA_PATH
 };

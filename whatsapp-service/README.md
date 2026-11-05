@@ -57,6 +57,11 @@ On the first run the console prints a QR code. Scan it with the school phone:
 
 **WhatsApp > Settings > Linked Devices > Link a Device**
 
+If the worker runs headless (PM2, systemd, a remote box), open
+`http://127.0.0.1:3001/qr` in a browser instead — it shows the same code and
+refreshes it automatically. When `HEALTH_TOKEN` is set, append it as
+`?token=…`; the page is gated by the same token as `/health`.
+
 The logged-in session is stored afterwards, so you only scan once. If the QR code
 expires, restart the service to get a fresh one.
 
