@@ -28,6 +28,11 @@ if (empty($segments) || $segments[0] === 'health') {
     ]);
 }
 
+// Sanitised WhatsApp worker status for the public Firebase entry page.
+if (($segments[0] ?? null) === 'whatsapp-status') {
+    sendWhatsAppStatus();
+}
+
 // Route API requests
 $resource = $segments[0] ?? null;
 $action = $segments[1] ?? null;
@@ -58,6 +63,59 @@ try {
 } catch (Exception $e) {
     error_log('[API ERROR] ' . $e->getMessage());
     sendError($e->getMessage(), 500);
+}
+
+/**
+ * Reports only booleans, never phone numbers or queue contents.
+ */
+function sendWhatsAppStatus(): void {
+    header('Cache-Control: no-store');
+
+    $base = rtrim((string) (getenv('SBMS_WHATSAPP_URL') ?: ''), '/');
+    if ($base === '') {
+        sendJson([
+            'state' => 'unconfigured',
+            'reachable' => false,
+            'ready' => false,
+            'workerRunning' => false,
+            'checkedAt' => gmdate('c'),
+        ]);
+    }
+
+    if (!function_exists('curl_init')) {
+        sendJson([
+            'state' => 'offline',
+            'reachable' => false,
+            'ready' => false,
+            'workerRunning' => false,
+            'checkedAt' => gmdate('c'),
+        ]);
+    }
+
+    $token = (string) (getenv('SBMS_WHATSAPP_HEALTH_TOKEN') ?: '');
+    $ch = curl_init($base . '/health');
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CONNECTTIMEOUT => 2,
+        CURLOPT_TIMEOUT => 3,
+        CURLOPT_HTTPHEADER => $token !== '' ? ['x-health-token: ' . $token] : [],
+    ]);
+    $body = curl_exec($ch);
+    $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    $reachable = $body !== false && $httpCode > 0 && $httpCode !== 401;
+    $payload = $reachable ? json_decode((string) $body, true) : null;
+    $ready = is_array($payload) && !empty($payload['whatsapp']['ready']);
+    $workerRunning = is_array($payload) && !empty($payload['workerRunning']);
+
+    sendJson([
+        'state' => !$reachable ? 'offline' : ($ready ? 'ready' : 'waiting'),
+        'reachable' => $reachable,
+        'ready' => $ready,
+        'workerRunning' => $workerRunning,
+        'checkedAt' => gmdate('c'),
+    ]);
 }
 
 /**

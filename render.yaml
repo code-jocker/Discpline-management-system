@@ -1,0 +1,41 @@
+services:
+  - type: web
+    name: sbms
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: "false"
+      - key: APP_TIMEZONE
+        value: Africa/Kigali
+      - key: SBMS_DB_HOST
+        sync: false
+      - key: SBMS_DB_PORT
+        value: "3306"
+      - key: SBMS_DB_NAME
+        sync: false
+      - key: SBMS_DB_USER
+        sync: false
+      - key: SBMS_DB_PASS
+        sync: false
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        value: "3306"
+      - key: DB_NAME
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: SBMS_WHATSAPP_URL
+        sync: false
+      - key: SBMS_WHATSAPP_HEALTH_TOKEN
+        sync: false
+      - key: ALLOWED_ORIGINS
+        value: https://clever-c5b37.web.app,https://clever-c5b37.firebaseapp.com

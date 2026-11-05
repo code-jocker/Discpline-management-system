@@ -35,12 +35,17 @@ loadEnvironment();
 header('Content-Type: application/json; charset=utf-8');
 
 // CORS Configuration
-$allowedOrigins = explode(',', getenv('ALLOWED_ORIGINS') ?: 'https://sbms-ten.vercel.app');
+$allowedOrigins = array_values(array_filter(array_map('trim', explode(
+    ',',
+    getenv('ALLOWED_ORIGINS')
+        ?: 'https://clever-c5b37.web.app,https://clever-c5b37.firebaseapp.com,https://sbms-ten.vercel.app'
+))));
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 
-if (in_array($origin, $allowedOrigins, true)) {
+if ($origin !== '' && in_array($origin, $allowedOrigins, true)) {
     header('Access-Control-Allow-Origin: ' . $origin);
     header('Access-Control-Allow-Credentials: true');
+    header('Vary: Origin');
 }
 
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, PATCH, OPTIONS');

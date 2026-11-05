@@ -48,8 +48,8 @@ verify_*.php
 tmp_*.php
 refactor.php
 
-# Workers (background tasks)
-workers/
+# Workers (background tasks) — root only, so whatsapp-service/src/workers stays tracked
+/workers/
 
 # OS files
 Thumbs.db
@@ -58,6 +58,11 @@ Thumbs.db
 # AI/Kombai files
 .kombai/
 .vercel
+
+# Firebase
+.firebase/
+firebase-debug.log*
+firebase-debug.*.log
 
 # Local scratch artifacts
 cookie.txt
@@ -68,6 +73,11 @@ improve_tree.txt
 php-releases.tmp.json
 kilo
 gk/
+
+# WhatsApp worker secrets and linked session
+whatsapp-service/.env
+whatsapp-service/.wwebjs_auth/
+whatsapp-service/.wwebjs_cache/
 
 # Deployment build artifact
 deploy/infinityfree-backend.zip

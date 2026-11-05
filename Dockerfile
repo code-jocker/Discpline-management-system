@@ -37,11 +37,11 @@ WORKDIR /var/www/html
 COPY . /var/www/html
 
 # Set correct permissions
-RUN chown -R www-data:www-data /var/www/html/storage \
- && chmod -R 775 /var/www/html/storage \
- && mkdir -p /var/www/html/storage/uploads \
+RUN mkdir -p /var/www/html/storage \
+             /var/www/html/storage/uploads \
              /var/www/html/storage/reports \
              /var/www/html/storage/ratelimits \
- && chown -R www-data:www-data /var/www/html/storage
+ && chown -R www-data:www-data /var/www/html/storage \
+ && chmod -R 775 /var/www/html/storage
 
 EXPOSE 80

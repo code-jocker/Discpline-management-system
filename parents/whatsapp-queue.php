@@ -267,7 +267,7 @@ $statusTone = static function (string $status): string {
 <section class="queue-hint">
     <strong>How delivery works.</strong>
     PHP never talks to WhatsApp directly. A discipline action inserts a job here, then the Node service claims it:
-    <code>cd C:\sbms-whatsapp</code>, <code>npm start</code>. Scan the QR code once with the school phone.
+    <code>cd whatsapp-service</code>, <code>npm install</code>, <code>npm start</code>. Scan the QR code once with the school phone.
     <?php if (!$health['reachable']): ?>
         <br><span style="color: #fca5a5;">The worker is not reachable at the configured URL<?= !empty($health['error']) ? ' — ' . e((string) $health['error']) : '' ?>.</span>
     <?php elseif (!$health['ready']): ?>

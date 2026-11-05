@@ -7,5 +7,6 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteBase /
+    RewriteRule ^whatsapp-service(?:/|$) - [F,L]
     RewriteRule ^api(?:/(.*))?$ api/index.php [L,QSA]
 </IfModule>

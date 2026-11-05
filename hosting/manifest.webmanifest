@@ -1,0 +1,17 @@
+{
+  "name": "SBMS — School Business Management System",
+  "short_name": "SBMS",
+  "description": "Entry point to the school portal: students, discipline, ID cards and WhatsApp parent notifications.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b1235",
+  "theme_color": "#17205c",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

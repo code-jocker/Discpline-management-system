@@ -241,7 +241,8 @@ $roles = [
     <div class="sbms-card" style="margin-top:1rem;">
         <div class="sbms-card__head"><h3 class="sbms-card__title">Starting the worker on the school computer</h3></div>
         <div class="sbms-card__body">
-            <code class="help-code">cd C:\sbms-whatsapp
+            <code class="help-code">cd whatsapp-service
+npm install
 npm start</code>
             <p style="margin:0.75rem 0 0; color:var(--sbms-muted); font-size:0.88rem; line-height:1.55;">
                 Scan the QR code with the school phone once (WhatsApp &rarr; Linked Devices). The session is reused on
