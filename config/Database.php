@@ -29,11 +29,11 @@ class Database {
     
     private function connect(): void {
         try {
-            $host = getenv('DB_HOST') ?: 'localhost';
-            $port = (int)(getenv('DB_PORT') ?: 3306);
-            $database = getenv('DB_NAME') ?: 'sbms';
-            $username = getenv('DB_USER') ?: 'root';
-            $password = getenv('DB_PASSWORD') ?: '';
+            $host = getenv('SBMS_DB_HOST') ?: getenv('DB_HOST') ?: 'localhost';
+            $port = (int)(getenv('SBMS_DB_PORT') ?: getenv('DB_PORT') ?: 3306);
+            $database = getenv('SBMS_DB_NAME') ?: getenv('DB_NAME') ?: 'sbms';
+            $username = getenv('SBMS_DB_USER') ?: getenv('DB_USER') ?: 'root';
+            $password = getenv('SBMS_DB_PASS') ?: getenv('DB_PASSWORD') ?: '';
             
             $dsn = "mysql:host={$host};port={$port};dbname={$database};charset=utf8mb4";
             

@@ -23,19 +23,5 @@ services:
         sync: false
       - key: SBMS_DB_PASS
         sync: false
-      - key: DB_HOST
-        sync: false
-      - key: DB_PORT
-        sync: false
-      - key: DB_NAME
-        sync: false
-      - key: DB_USER
-        sync: false
-      - key: DB_PASSWORD
-        sync: false
-      - key: SBMS_WHATSAPP_URL
-        sync: false
-      - key: SBMS_WHATSAPP_HEALTH_TOKEN
-        sync: false
       - key: ALLOWED_ORIGINS
         value: https://clever-c5b37.web.app,https://clever-c5b37.firebaseapp.com
