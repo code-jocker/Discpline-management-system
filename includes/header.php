@@ -15,8 +15,14 @@ $viteAssets = $viteAssets ?? [];
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#1e2a78">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="SBMS">
+    <link rel="manifest" href="<?= e(app_base_url()) ?>/manifest.webmanifest">
+    <link rel="apple-touch-icon" href="<?= e(app_base_url()) ?>/assets/img/app-icon-192.png">
     <meta name="csrf-token" content="<?= htmlspecialchars(csrf_token()) ?>">
     <title><?= htmlspecialchars($pageTitle) ?></title>
     <?php
@@ -150,6 +156,7 @@ $viteAssets = $viteAssets ?? [];
     <link rel="stylesheet" href="<?= htmlspecialchars(vite_asset('assets/css/official.css')) ?>?v=<?= (int) (@filemtime(dirname(__DIR__) . '/assets/css/official.css') ?: 1) ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(vite_asset('assets/css/tokens.css')) ?>?v=<?= (int) (@filemtime(dirname(__DIR__) . '/assets/css/tokens.css') ?: 1) ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(vite_asset('assets/css/components.css')) ?>?v=<?= (int) (@filemtime(dirname(__DIR__) . '/assets/css/components.css') ?: 1) ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(vite_asset('assets/css/mobile-first.css')) ?>?v=<?= (int) (@filemtime(dirname(__DIR__) . '/assets/css/mobile-first.css') ?: 1) ?>">
 </head>
 <body class="<?= htmlspecialchars($bodyClass) ?>">
     <a class="sbms-skip-link" href="#main-content">Skip to content</a>

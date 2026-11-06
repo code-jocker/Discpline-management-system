@@ -1,0 +1,33 @@
+{
+  "name": "SBMS — Student Behaviour Management System",
+  "short_name": "SBMS",
+  "description": "School discipline, student records and pastoral follow-up for staff.",
+  "id": "./",
+  "start_url": "./index.php",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f5f7fb",
+  "theme_color": "#1e2a78",
+  "categories": ["education", "productivity"],
+  "icons": [
+    {
+      "src": "assets/img/app-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/img/app-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/img/app-icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
