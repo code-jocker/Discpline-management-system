@@ -13,6 +13,8 @@ services:
         value: "false"
       - key: APP_TIMEZONE
         value: Africa/Kigali
+      - key: SBMS_BASE_URL
+        value: https://sbms-8iz0.onrender.com
       - key: SBMS_DB_HOST
         sync: false
       - key: SBMS_DB_PORT
@@ -23,7 +25,9 @@ services:
         sync: false
       - key: SBMS_DB_PASS
         sync: false
+      - key: SBMS_DB_SSL_MODE
+        value: required
       - key: SBMS_DB_SSL_CA
         value: /var/www/html/deploy/aiven-ca.pem
       - key: ALLOWED_ORIGINS
-        value: https://clever-c5b37.web.app,https://clever-c5b37.firebaseapp.com
+        value: https://clever-c5b37.web.app,https://clever-c5b37.firebaseapp.com,https://sbms-8iz0.onrender.com
