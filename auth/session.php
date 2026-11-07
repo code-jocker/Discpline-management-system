@@ -9,27 +9,62 @@ if (!function_exists('app_base_url')) {
 function app_base_url(): string
 {
     static $resolved = null;
-    if (is_string($resolved)) { return $resolved; }
+    if (is_string($resolved)) {
+        return $resolved;
+    }
+
     $env = getenv('SBMS_BASE_URL') ?: getenv('APP_URL') ?: '';
-    if (is_string($env) && trim($env) !== '') { $resolved = rtrim(trim($env), '/'); return $resolved; }
+    if (is_string($env) && trim($env) !== '') {
+        $resolved = rtrim(trim($env), '/');
+        return $resolved;
+    }
+
     $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
         || ((int) ($_SERVER['SERVER_PORT'] ?? 0) === 443)
-        || strtolower((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https';
+        || strtolower((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https'
+        || strtolower((string) ($_SERVER['HTTP_X_FORWARDED_SSL'] ?? '')) === 'on';
     $scheme = $https ? 'https' : 'http';
+
     $hostHeader = (string) ($_SERVER['HTTP_X_FORWARDED_HOST'] ?? $_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? 'localhost');
     $hostHeader = trim(explode(',', $hostHeader)[0]);
     $parsedHost = parse_url('http://' . $hostHeader, PHP_URL_HOST) ?: $hostHeader;
     $parsedPort = parse_url('http://' . $hostHeader, PHP_URL_PORT);
-    $host = preg_match('/^(localhost|127(?:\.\d{1,3}){3}|0\.0\.0\.0|::1)$/i', $parsedHost) ? $parsedHost : $parsedHost;
+
     $port = '';
-    if (is_numeric($parsedPort)) { $p=(int)$parsedPort; if (!(($scheme==='http'&&$p===80)||($scheme==='https'&&$p===443))) $port=':'.$p; }
-    $script = str_replace('\\','/',(string)($_SERVER['SCRIPT_NAME'] ?? ''));
-    $basePath = '';
-    foreach (['/auth/','/api/','/students/','/discipline/','/settings/','/parents/','/reports/','/letters/','/dashboard/','/classes/','/users/','/rules/','/profile/','/notifications/','/includes/'] as $marker) {
-        $pos = strpos($script,$marker); if ($pos !== false) { $basePath = substr($script,0,$pos); break; }
+    if (is_numeric($parsedPort)) {
+        $p = (int) $parsedPort;
+        if (!(($scheme === 'http' && $p === 80) || ($scheme === 'https' && $p === 443))) {
+            $port = ':' . $p;
+        }
+    } elseif (!empty($_SERVER['SERVER_PORT']) && $parsedPort === null) {
+        $p = (int) $_SERVER['SERVER_PORT'];
+        if (!(($scheme === 'http' && $p === 80) || ($scheme === 'https' && $p === 443))) {
+            $port = ':' . $p;
+        }
     }
-    if ($basePath==='' && preg_match('#^(.*)/[^/]+\.php$#',$script,$m)) { $c=$m[1]; if ($c!=='' && $c!=='/') $basePath=$c; }
-    $resolved = $scheme.'://'.$host.$port.rtrim($basePath,'/');
+
+    // Detect subdirectory install (e.g. /sbms on XAMPP). CRITICAL: a marker match
+    // at position 0 means app is at document root (basePath ''), NOT "not found".
+    $script = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_NAME'] ?? $_SERVER['PHP_SELF'] ?? ''));
+    $basePath = '';
+    $found = false;
+    foreach (['/auth/','/api/','/students/','/discipline/','/settings/','/parents/','/reports/','/letters/','/dashboard/','/classes/','/users/','/rules/','/profile/','/notifications/','/includes/','/assets/'] as $marker) {
+        $pos = strpos($script, $marker);
+        if ($pos !== false) {
+            $basePath = substr($script, 0, $pos);
+            $found = true;
+            break;
+        }
+    }
+    if (!$found && preg_match('#^(.*)/[^/]+\.php$#', $script, $m)) {
+        $c = (string) $m[1];
+        // root-level scripts like /index.php => base ''
+        if ($c !== '' && $c !== '/') {
+            $basePath = $c;
+        }
+    }
+
+    $resolved = $scheme . '://' . $parsedHost . $port . rtrim($basePath, '/');
     return $resolved;
 }
 }
