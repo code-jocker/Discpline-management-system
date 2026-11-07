@@ -26,6 +26,10 @@ COPY deploy/php.ini /usr/local/etc/php/conf.d/sbms.ini
 # Apache virtual host
 COPY deploy/apache-docker.conf /etc/apache2/sites-available/000-default.conf
 
+# Render routes traffic to $PORT (default 10000), not 80.
+ENV PORT=10000
+RUN sed -i 's/^Listen 80$/Listen ${PORT}/' /etc/apache2/ports.conf
+
 WORKDIR /var/www/html
 
 # Copy application code
@@ -39,4 +43,4 @@ RUN mkdir -p /var/www/html/storage \
  && chown -R www-data:www-data /var/www/html/storage \
  && chmod -R 775 /var/www/html/storage
 
-EXPOSE 80
+EXPOSE 10000
