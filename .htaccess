@@ -3,10 +3,11 @@
     Require all denied
 </FilesMatch>
 
-# Route /api/* requests to the API router
+# Route API requests
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteBase /
     RewriteRule ^whatsapp-service(?:/|$) - [F,L]
+    RewriteRule ^api/v1(?:/(.*))?$ api/v1/index.php [L,QSA]
     RewriteRule ^api(?:/(.*))?$ api/index.php [L,QSA]
 </IfModule>
