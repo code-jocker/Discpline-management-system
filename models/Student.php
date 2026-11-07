@@ -349,7 +349,6 @@ final class Student
         $this->db->beginTransaction();
 
         try {
-            // Delete all related records first to satisfy foreign key constraints
             $tables = [
                 'deductions_history',
                 'student_marks',
@@ -360,19 +359,17 @@ final class Student
                 'behavior_incidents',
                 'discipline_marks',
                 'parents',
-                'positive_behavior'
+                'positive_behavior',
             ];
 
             foreach ($tables as $table) {
-                // Check if table exists to prevent errors
-                $check = $this->db->query("SHOW TABLES LIKE '{$table}'");
-                if ($check->rowCount() > 0) {
-                    $stmt = $this->db->prepare("DELETE FROM {$table} WHERE student_id = :student_id");
-                    $stmt->execute(['student_id' => $studentId]);
+                if (!\Database::tableExists($table)) {
+                    continue;
                 }
+                $stmt = $this->db->prepare("DELETE FROM `{$table}` WHERE student_id = :student_id");
+                $stmt->execute(['student_id' => $studentId]);
             }
 
-            // Finally, delete the student
             $deleteStudent = $this->db->prepare('DELETE FROM students WHERE id = :id');
             $deleteStudent->execute(['id' => $studentId]);
 
@@ -533,32 +530,31 @@ final class Student
             $defaultMarks = max(0, min(40, (int) $stored));
         }
 
-        // Every student starts with the same term baseline so downstream modules can rely on complete term rows.
-        $statement = $this->db->prepare(
-            'INSERT INTO student_marks (student_id, term, marks)
-             VALUES (:student_id, :term, :marks)'
-        );
+        $hasSchoolYear = \Database::columnExists('student_marks', 'school_year');
+        $schoolYear = $hasSchoolYear ? $settings->selectedSchoolYear() : null;
+
+        if ($hasSchoolYear) {
+            $statement = $this->db->prepare(
+                'INSERT INTO student_marks (student_id, term, marks, school_year)
+                 VALUES (:student_id, :term, :marks, :school_year)'
+            );
+        } else {
+            $statement = $this->db->prepare(
+                'INSERT INTO student_marks (student_id, term, marks)
+                 VALUES (:student_id, :term, :marks)'
+            );
+        }
 
         for ($term = 1; $term <= 3; $term++) {
-            // Include selected school year when the column exists
-            if (\Database::columnExists('student_marks', 'school_year')) {
-                $statement = $this->db->prepare(
-                    'INSERT INTO student_marks (student_id, term, marks, school_year)
-                     VALUES (:student_id, :term, :marks, :school_year)'
-                );
-                $statement->execute([
-                    'student_id' => $studentId,
-                    'term' => $term,
-                    'marks' => $defaultMarks,
-                    'school_year' => (new \Settings($this->db))->selectedSchoolYear(),
-                ]);
-            } else {
-                $statement->execute([
-                    'student_id' => $studentId,
-                    'term' => $term,
-                    'marks' => $defaultMarks,
-                ]);
+            $params = [
+                'student_id' => $studentId,
+                'term' => $term,
+                'marks' => $defaultMarks,
+            ];
+            if ($hasSchoolYear) {
+                $params['school_year'] = $schoolYear;
             }
+            $statement->execute($params);
         }
     }
 

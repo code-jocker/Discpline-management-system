@@ -5,55 +5,34 @@ require_once dirname(__DIR__) . '/config/db.php'; // For Database::logError
 const SBMS_SESSION_TIMEOUT = 1800;
 const SBMS_REMEMBER_ME_DAYS = 30;
 
+if (!function_exists('app_base_url')) {
 function app_base_url(): string
 {
-    $envBaseUrl = getenv('SBMS_BASE_URL');
-    if ($envBaseUrl) {
-        return rtrim($envBaseUrl, '/');
-    }
-
-    $scheme = 'http';
-    if ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-        || (!empty($_SERVER['HTTP_X_FORWARDED_PROTO']) && strtolower($_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https')
-        || (!empty($_SERVER['SERVER_PORT']) && (int) $_SERVER['SERVER_PORT'] === 443)) {
-        $scheme = 'https';
-    }
-
-    $hostHeader = $_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? 'localhost';
-    $hostHeader = trim($hostHeader);
+    static $resolved = null;
+    if (is_string($resolved)) { return $resolved; }
+    $env = getenv('SBMS_BASE_URL') ?: getenv('APP_URL') ?: '';
+    if (is_string($env) && trim($env) !== '') { $resolved = rtrim(trim($env), '/'); return $resolved; }
+    $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || ((int) ($_SERVER['SERVER_PORT'] ?? 0) === 443)
+        || strtolower((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https';
+    $scheme = $https ? 'https' : 'http';
+    $hostHeader = (string) ($_SERVER['HTTP_X_FORWARDED_HOST'] ?? $_SERVER['HTTP_HOST'] ?? $_SERVER['SERVER_NAME'] ?? 'localhost');
+    $hostHeader = trim(explode(',', $hostHeader)[0]);
     $parsedHost = parse_url('http://' . $hostHeader, PHP_URL_HOST) ?: $hostHeader;
     $parsedPort = parse_url('http://' . $hostHeader, PHP_URL_PORT);
-
-    $host = $parsedHost;
-    if (preg_match('/^(localhost|127(?:\.\d{1,3}){3}|0\.0\.0\.0|::1)$/i', $host)) {
-        $host = '127.0.0.1';
-    }
-
+    $host = preg_match('/^(localhost|127(?:\.\d{1,3}){3}|0\.0\.0\.0|::1)$/i', $parsedHost) ? $parsedHost : $parsedHost;
     $port = '';
-    if (is_numeric($parsedPort) && (int) $parsedPort > 0) {
-        $port = ':' . (int) $parsedPort;
-    }
-
+    if (is_numeric($parsedPort)) { $p=(int)$parsedPort; if (!(($scheme==='http'&&$p===80)||($scheme==='https'&&$p===443))) $port=':'.$p; }
+    $script = str_replace('\\','/',(string)($_SERVER['SCRIPT_NAME'] ?? ''));
     $basePath = '';
-    $documentRoot = $_SERVER['DOCUMENT_ROOT'] ?? '';
-    $projectRoot = dirname(__DIR__);
-
-    if ($documentRoot !== '' && realpath($documentRoot) !== false && realpath($projectRoot) !== false) {
-        $normalizedDocumentRoot = str_replace('\\', '/', realpath($documentRoot));
-        $normalizedProjectRoot = str_replace('\\', '/', realpath($projectRoot));
-
-        if (str_starts_with($normalizedProjectRoot, $normalizedDocumentRoot)) {
-            $relativePath = substr($normalizedProjectRoot, strlen($normalizedDocumentRoot));
-            $basePath = '/' . trim(str_replace('\\', '/', $relativePath), '/');
-            if ($basePath === '/') {
-                $basePath = '';
-            }
-        }
+    foreach (['/auth/','/api/','/students/','/discipline/','/settings/','/parents/','/reports/','/letters/','/dashboard/','/classes/','/users/','/rules/','/profile/','/notifications/','/includes/'] as $marker) {
+        $pos = strpos($script,$marker); if ($pos !== false) { $basePath = substr($script,0,$pos); break; }
     }
-
-    return rtrim($scheme . '://' . $host . $port . $basePath, '/');
+    if ($basePath==='' && preg_match('#^(.*)/[^/]+\.php$#',$script,$m)) { $c=$m[1]; if ($c!=='' && $c!=='/') $basePath=$c; }
+    $resolved = $scheme.'://'.$host.$port.rtrim($basePath,'/');
+    return $resolved;
 }
-
+}
 function start_secure_session(): void
 {
     if (session_status() === PHP_SESSION_ACTIVE) {

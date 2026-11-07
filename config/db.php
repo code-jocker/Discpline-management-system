@@ -60,6 +60,10 @@ loadEnvironment(__DIR__ . '/../.env');
 final class Database
 {
     private static ?PDO $connection = null;
+    /** @var array<string,bool> */
+    private static array $tableCache = [];
+    /** @var array<string,bool> */
+    private static array $columnCache = [];
 
     public static function connection(): PDO
     {
@@ -123,41 +127,49 @@ final class Database
 
     public static function tableExists(string $tableName): bool
     {
+        $cacheKey = strtolower($tableName);
+        if (array_key_exists($cacheKey, self::$tableCache)) {
+            return self::$tableCache[$cacheKey];
+        }
         try {
             $statement = self::connection()->prepare(
-                'SELECT COUNT(*) FROM information_schema.tables
+                'SELECT 1 FROM information_schema.tables
                  WHERE table_schema = DATABASE()
-                   AND table_name = :table_name'
+                   AND table_name = :table_name
+                 LIMIT 1'
             );
             $statement->execute(['table_name' => $tableName]);
-            return (int) $statement->fetchColumn() > 0;
+            self::$tableCache[$cacheKey] = (bool) $statement->fetchColumn();
         } catch (Throwable $exception) {
-            return false;
+            self::$tableCache[$cacheKey] = false;
         }
+        return self::$tableCache[$cacheKey];
     }
 
     public static function columnExists(string $tableName, string $columnName): bool
     {
-        if (!self::tableExists($tableName)) {
-            return false;
+        $cacheKey = strtolower($tableName . '.' . $columnName);
+        if (array_key_exists($cacheKey, self::$columnCache)) {
+            return self::$columnCache[$cacheKey];
         }
-
+        // Only check column metadata; avoids an extra tableExists query.
         try {
             $statement = self::connection()->prepare(
-                'SELECT COUNT(*) FROM information_schema.columns
+                'SELECT 1 FROM information_schema.columns
                  WHERE table_schema = DATABASE()
                    AND table_name = :table_name
-                   AND column_name = :column_name'
+                   AND column_name = :column_name
+                 LIMIT 1'
             );
             $statement->execute([
                 'table_name' => $tableName,
                 'column_name' => $columnName,
             ]);
-
-            return (int) $statement->fetchColumn() > 0;
+            self::$columnCache[$cacheKey] = (bool) $statement->fetchColumn();
         } catch (Throwable $exception) {
-            return false;
+            self::$columnCache[$cacheKey] = false;
         }
+        return self::$columnCache[$cacheKey];
     }
 }
 

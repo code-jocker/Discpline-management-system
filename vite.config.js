@@ -25,6 +25,8 @@ export default defineConfig({
         'discipline-engine.css': resolve(__dirname, 'assets/css/discipline-engine.css'),
         'settings.css': resolve(__dirname, 'assets/css/settings.css'),
         'student-management.css': resolve(__dirname, 'assets/css/student-management.css'),
+        'official.css': resolve(__dirname, 'assets/css/official.css'),
+        'mobile-first.css': resolve(__dirname, 'assets/css/mobile-first.css'),
         'tokens.css': resolve(__dirname, 'assets/css/tokens.css'),
         'components.css': resolve(__dirname, 'assets/css/components.css')
       }
