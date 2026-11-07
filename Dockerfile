@@ -1,26 +1,21 @@
 FROM php:8.2-apache
 
-# Install system dependencies
+# Build only the extensions the app uses. curl is already enabled in the
+# base image; mbstring needs libonig, zip needs libzip, gd needs libpng/libjpeg.
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
         libzip-dev \
+        libonig-dev \
         libpng-dev \
-        libjpeg-dev \
-        libicu-dev \
-        libcurl4-openssl-dev \
-        curl \
-        unzip \
-        supervisor \
- && rm -rf /var/lib/apt/lists/*
-
-# Install PHP extensions
-RUN docker-php-ext-install \
+        libjpeg62-turbo-dev \
+ && docker-php-ext-configure gd --with-jpeg \
+ && docker-php-ext-install -j"$(nproc)" \
         pdo_mysql \
         mbstring \
         zip \
-        intl \
+        gd \
         opcache \
-        curl
+ && rm -rf /var/lib/apt/lists/*
 
 # Enable Apache modules
 RUN a2enmod rewrite headers expires deflate
