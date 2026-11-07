@@ -73,7 +73,6 @@ final class Database
         $username = getenv('SBMS_DB_USER') ?: getenv('DB_USER') ?: 'root';
         $password = getenv('SBMS_DB_PASS') ?: getenv('DB_PASSWORD') ?: '';
         $charset = getenv('SBMS_DB_CHARSET') ?: getenv('DB_CHARSET') ?: 'utf8mb4';
-        $sslCa = getenv('SBMS_DB_SSL_CA') ?: getenv('DB_SSL_CA') ?: '';
 
         $dsn = sprintf('mysql:host=%s;port=%s;dbname=%s;charset=%s', $host, $port, $database, $charset);
 
@@ -82,11 +81,17 @@ final class Database
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES => false,
         ];
-
-        // Managed MySQL (Aiven) requires TLS; the CA ships in deploy/aiven-ca.pem.
-        if ($sslCa !== '' && is_readable($sslCa)) {
-            $options[PDO::MYSQL_ATTR_SSL_CA] = $sslCa;
+        $sslCa = getenv('SBMS_DB_SSL_CA') ?: getenv('DB_SSL_CA') ?: '';
+        $sslMode = strtolower((string) (getenv('SBMS_DB_SSL_MODE') ?: getenv('DB_SSL_MODE') ?: ''));
+        if ($sslCa !== '' || $sslMode === 'required' || $sslMode === 'verify-ca' || $sslMode === 'verify-identity') {
+            if ($sslCa !== '' && is_file($sslCa)) {
+                $options[PDO::MYSQL_ATTR_SSL_CA] = $sslCa;
+            }
+            if (defined('PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT')) {
+                $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
+            }
         }
+        $options[PDO::MYSQL_ATTR_INIT_COMMAND] = "SET sql_mode=''";
 
         try {
             self::$connection = new PDO($dsn, $username, $password, $options);
