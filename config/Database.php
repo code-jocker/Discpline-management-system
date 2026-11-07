@@ -34,20 +34,23 @@ class Database {
             $database = getenv('SBMS_DB_NAME') ?: getenv('DB_NAME') ?: 'sbms';
             $username = getenv('SBMS_DB_USER') ?: getenv('DB_USER') ?: 'root';
             $password = getenv('SBMS_DB_PASS') ?: getenv('DB_PASSWORD') ?: '';
-            
+            $sslCa = getenv('SBMS_DB_SSL_CA') ?: getenv('DB_SSL_CA') ?: '';
+
             $dsn = "mysql:host={$host};port={$port};dbname={$database};charset=utf8mb4";
-            
-            $this->connection = new PDO(
-                $dsn,
-                $username,
-                $password,
-                [
-                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                    PDO::ATTR_EMULATE_PREPARES => false,
-                    PDO::ATTR_PERSISTENT => false,
-                ]
-            );
+
+            $options = [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false,
+                PDO::ATTR_PERSISTENT => false,
+            ];
+
+            // Managed MySQL (Aiven) requires TLS; the CA ships in deploy/aiven-ca.pem.
+            if ($sslCa !== '' && is_readable($sslCa)) {
+                $options[PDO::MYSQL_ATTR_SSL_CA] = $sslCa;
+            }
+
+            $this->connection = new PDO($dsn, $username, $password, $options);
             
             error_log('[DB] Connected successfully to ' . $host);
             

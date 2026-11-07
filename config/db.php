@@ -73,20 +73,23 @@ final class Database
         $username = getenv('SBMS_DB_USER') ?: getenv('DB_USER') ?: 'root';
         $password = getenv('SBMS_DB_PASS') ?: getenv('DB_PASSWORD') ?: '';
         $charset = getenv('SBMS_DB_CHARSET') ?: getenv('DB_CHARSET') ?: 'utf8mb4';
+        $sslCa = getenv('SBMS_DB_SSL_CA') ?: getenv('DB_SSL_CA') ?: '';
 
         $dsn = sprintf('mysql:host=%s;port=%s;dbname=%s;charset=%s', $host, $port, $database, $charset);
 
+        $options = [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
+        ];
+
+        // Managed MySQL (Aiven) requires TLS; the CA ships in deploy/aiven-ca.pem.
+        if ($sslCa !== '' && is_readable($sslCa)) {
+            $options[PDO::MYSQL_ATTR_SSL_CA] = $sslCa;
+        }
+
         try {
-            self::$connection = new PDO(
-                $dsn,
-                $username,
-                $password,
-                [
-                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                    PDO::ATTR_EMULATE_PREPARES => false,
-                ]
-            );
+            self::$connection = new PDO($dsn, $username, $password, $options);
         } catch (PDOException $exception) {
             self::logError('Database connection failed', ['exception' => $exception->getMessage()]);
             throw new RuntimeException('The system is temporarily unable to connect to the database.');

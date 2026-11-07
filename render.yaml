@@ -23,5 +23,7 @@ services:
         sync: false
       - key: SBMS_DB_PASS
         sync: false
+      - key: SBMS_DB_SSL_CA
+        value: /var/www/html/deploy/aiven-ca.pem
       - key: ALLOWED_ORIGINS
         value: https://clever-c5b37.web.app,https://clever-c5b37.firebaseapp.com
