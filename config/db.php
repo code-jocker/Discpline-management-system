@@ -76,17 +76,25 @@ final class Database
 
         $dsn = sprintf('mysql:host=%s;port=%s;dbname=%s;charset=%s', $host, $port, $database, $charset);
 
+        $options = [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
+        ];
+        $sslCa = getenv('SBMS_DB_SSL_CA') ?: getenv('DB_SSL_CA') ?: '';
+        $sslMode = strtolower((string) (getenv('SBMS_DB_SSL_MODE') ?: getenv('DB_SSL_MODE') ?: ''));
+        if ($sslCa !== '' || $sslMode === 'required' || $sslMode === 'verify-ca' || $sslMode === 'verify-identity') {
+            if ($sslCa !== '' && is_file($sslCa)) {
+                $options[PDO::MYSQL_ATTR_SSL_CA] = $sslCa;
+            }
+            if (defined('PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT')) {
+                $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
+            }
+        }
+        $options[PDO::MYSQL_ATTR_INIT_COMMAND] = "SET sql_mode=''";
+
         try {
-            self::$connection = new PDO(
-                $dsn,
-                $username,
-                $password,
-                [
-                    PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                    PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                    PDO::ATTR_EMULATE_PREPARES => false,
-                ]
-            );
+            self::$connection = new PDO($dsn, $username, $password, $options);
         } catch (PDOException $exception) {
             self::logError('Database connection failed', ['exception' => $exception->getMessage()]);
             throw new RuntimeException('The system is temporarily unable to connect to the database.');
