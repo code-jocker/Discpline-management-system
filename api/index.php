@@ -123,20 +123,8 @@ function sendWhatsAppStatus(): void {
  */
 function handleAuth(string $method, ?string $action): void {
     if ($method === 'POST' && $action === 'login') {
-        $data = getJsonBody();
-        
-        $error = validateRequired($data, ['email', 'password']);
-        if ($error) {
-            sendError($error, 400);
-        }
-        
-        // TODO: Implement actual login
-        sendJson([
-            'success' => true,
-            'message' => 'Login endpoint ready',
-            'token' => 'placeholder_token_' . time()
-        ]);
-        
+        // Deprecated shim: use /auth/login.php (session + CSRF) for the web app.
+        sendError('Use /auth/login.php for authentication.', 410);
     } elseif ($method === 'POST' && $action === 'logout') {
         sendJson([
             'success' => true,
@@ -224,27 +212,27 @@ function handleStudents(string $method, ?string $action, ?string $id): void {
         switch ($method) {
             case 'GET':
                 if ($id) {
-                    // Get specific student
+                    // Get specific student (schema uses full_name)
                     $student = $db->fetch(
-                        'SELECT id, name, email, student_code FROM students WHERE id = ?',
+                        'SELECT id, full_name, student_code, class_id, status FROM students WHERE id = ?',
                         [$id]
                     );
-                    
+
                     if (!$student) {
                         sendError('Student not found', 404);
                     }
-                    
+
                     sendJson(['data' => $student]);
                 } else {
                     // List students
-                    $limit = $_GET['limit'] ?? 100;
-                    $offset = $_GET['offset'] ?? 0;
-                    
+                    $limit = max(1, min(500, (int) ($_GET['limit'] ?? 100)));
+                    $offset = max(0, (int) ($_GET['offset'] ?? 0));
+
                     $students = $db->fetchAll(
-                        'SELECT id, name, email, student_code FROM students LIMIT ? OFFSET ?',
+                        'SELECT id, full_name, student_code, class_id, status FROM students ORDER BY full_name ASC LIMIT ? OFFSET ?',
                         [$limit, $offset]
                     );
-                    
+
                     sendJson(['data' => $students, 'limit' => $limit, 'offset' => $offset]);
                 }
                 break;

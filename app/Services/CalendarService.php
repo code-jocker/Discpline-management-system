@@ -170,9 +170,10 @@ class CalendarService
         try {
             $today = date('Y-m-d');
             $future = date('Y-m-d', strtotime('+30 days'));
+            $limit = max(1, min(100, $limit));
 
-            $stmt = $this->pdo->prepare("
-                SELECT 
+            $sql = "
+                SELECT
                     ce.id,
                     ce.event_type,
                     ce.event_title,
@@ -185,7 +186,7 @@ class CalendarService
                 LEFT JOIN students s ON ce.student_id = s.id
                 LEFT JOIN classes c ON ce.class_id = c.id
                 WHERE ce.event_date BETWEEN ? AND ?
-            ");
+            ";
 
             $params = [$today, $future];
             if ($classId) {
@@ -193,9 +194,9 @@ class CalendarService
                 $params[] = $classId;
             }
 
-            $sql .= " ORDER BY ce.event_date ASC, ce.event_time ASC LIMIT ?";
-            $params[] = $limit;
+            $sql .= " ORDER BY ce.event_date ASC, ce.event_time ASC LIMIT " . (int) $limit;
 
+            $stmt = $this->pdo->prepare($sql);
             $stmt->execute($params);
             return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
         } catch (\Exception $e) {

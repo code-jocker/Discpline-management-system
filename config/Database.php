@@ -35,6 +35,7 @@ class Database {
             $username = getenv('SBMS_DB_USER') ?: getenv('DB_USER') ?: 'root';
             $password = getenv('SBMS_DB_PASS') ?: getenv('DB_PASSWORD') ?: '';
             $sslCa = getenv('SBMS_DB_SSL_CA') ?: getenv('DB_SSL_CA') ?: '';
+            $sslMode = strtolower((string) (getenv('SBMS_DB_SSL_MODE') ?: getenv('DB_SSL_MODE') ?: ''));
 
             $dsn = "mysql:host={$host};port={$port};dbname={$database};charset=utf8mb4";
 
@@ -45,26 +46,22 @@ class Database {
                 PDO::ATTR_PERSISTENT => false,
             ];
 
-            // Managed MySQL (Aiven) requires TLS; the CA ships in deploy/aiven-ca.pem.
-            if ($sslCa !== '' && is_readable($sslCa)) {
-                $options[PDO::MYSQL_ATTR_SSL_CA] = $sslCa;
+            // Managed MySQL (Aiven) TLS; clear sql_mode for ANSI_QUOTES compatibility.
+            if ($sslCa !== '' || $sslMode === 'required' || $sslMode === 'verify-ca' || $sslMode === 'verify-identity') {
+                if ($sslCa !== '' && is_readable($sslCa)) {
+                    $options[PDO::MYSQL_ATTR_SSL_CA] = $sslCa;
+                }
+                if (defined('PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT')) {
+                    $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
+                }
             }
+            $options[PDO::MYSQL_ATTR_INIT_COMMAND] = "SET sql_mode=''";
 
             $this->connection = new PDO($dsn, $username, $password, $options);
-            
-            error_log('[DB] Connected successfully to ' . $host);
-            
+
         } catch (PDOException $e) {
             error_log('[DB ERROR] ' . $e->getMessage());
-            
-            // Return user-friendly error
-            http_response_code(500);
-            header('Content-Type: application/json');
-            echo json_encode([
-                'error' => 'Database connection failed',
-                'message' => getenv('APP_DEBUG') === 'true' ? $e->getMessage() : 'Unable to connect to database'
-            ]);
-            exit;
+            throw new RuntimeException('Database connection failed');
         }
     }
     
