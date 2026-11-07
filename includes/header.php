@@ -38,6 +38,8 @@ $viteAssets = $viteAssets ?? [];
         <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2220%22 fill=%22%231e2a78%22/><text x=%2250%22 y=%2272%22 font-family=%22sans-serif%22 font-size=%2265%22 font-weight=%22bold%22 fill=%22%23ffffff%22 text-anchor=%22middle%22>S</text></svg>">
     <?php endif; ?>
     <?php render_plexus_head(); ?>
+    <link rel="stylesheet" href="<?= htmlspecialchars(vite_asset('assets/css/tokens.css')) ?>">
+    <link rel="stylesheet" href="<?= htmlspecialchars(vite_asset('assets/css/components.css')) ?>">
     <?php vite_tags($viteAssets); ?>
     <style>
         button,
@@ -154,12 +156,9 @@ $viteAssets = $viteAssets ?? [];
         }
     </style>
     <link rel="stylesheet" href="<?= htmlspecialchars(vite_asset('assets/css/official.css')) ?>?v=<?= (int) (@filemtime(dirname(__DIR__) . '/assets/css/official.css') ?: 1) ?>">
-    <link rel="stylesheet" href="<?= htmlspecialchars(vite_asset('assets/css/tokens.css')) ?>?v=<?= (int) (@filemtime(dirname(__DIR__) . '/assets/css/tokens.css') ?: 1) ?>">
-    <link rel="stylesheet" href="<?= htmlspecialchars(vite_asset('assets/css/components.css')) ?>?v=<?= (int) (@filemtime(dirname(__DIR__) . '/assets/css/components.css') ?: 1) ?>">
     <link rel="stylesheet" href="<?= htmlspecialchars(vite_asset('assets/css/mobile-first.css')) ?>?v=<?= (int) (@filemtime(dirname(__DIR__) . '/assets/css/mobile-first.css') ?: 1) ?>">
 </head>
 <body class="<?= htmlspecialchars($bodyClass) ?>">
-    <a class="sbms-skip-link" href="#main-content">Skip to content</a>
     <?php render_plexus_background(); ?>
     <?php if (!$hideSidebar): ?>
     <header class="mobile-topbar">
@@ -202,7 +201,7 @@ $viteAssets = $viteAssets ?? [];
     <?php endif; ?>
     <div class="app-container">
         <?php if (!$hideSidebar) require_once __DIR__ . '/sidebar.php'; ?>
-        <main id="main-content" tabindex="-1" class="<?= htmlspecialchars($mainClass) ?> main-content">
+        <main class="<?= htmlspecialchars($mainClass) ?> main-content">
     <script>
         (function () {
             var body = document.body;

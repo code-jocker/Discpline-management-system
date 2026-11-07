@@ -1,0 +1,18 @@
+{
+  "name": "sbms-whatsapp-worker",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "WhatsApp Web worker for SBMS notification queue (whatsapp-web.js + MySQL)",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "mysql2": "^3.11.0",
+    "qrcode-terminal": "^0.12.0",
+    "whatsapp-web.js": "^1.26.0"
+  }
+}

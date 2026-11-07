@@ -199,30 +199,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
     } elseif ($action === 'update_messaging') {
         $updates = [];
-
-        foreach ([
-            'twilio_account_sid',
-            'twilio_phone_number',
-            'twilio_whatsapp_number',
-        ] as $field) {
-            if (isset($_POST[$field])) {
-                $value = trim((string) $_POST[$field]);
-                if ($value !== '') {
-                    $updates[$field] = $value;
-                }
+        foreach (['whatsapp_worker_url', 'whatsapp_worker_token', 'whatsapp_country_code_default'] as $field) {
+            if (array_key_exists($field, $_POST)) {
+                $updates[$field] = trim((string) $_POST[$field]);
             }
         }
-
-        if (isset($_POST['twilio_auth_token']) && trim((string) $_POST['twilio_auth_token']) !== '') {
-            $updates['twilio_auth_token'] = trim((string) $_POST['twilio_auth_token']);
-        }
-
+        $updates['whatsapp_web_enabled'] = !empty($_POST['whatsapp_web_enabled']) ? '1' : '0';
         if (!empty($updates)) {
             $settingsModel->update($updates);
-            $message = 'Messaging settings updated successfully!';
+            $message = 'WhatsApp settings updated successfully!';
             $messageType = 'success';
         } else {
-            $message = 'No messaging settings to update.';
+            $message = 'No WhatsApp settings to update.';
             $messageType = 'error';
         }
     } elseif ($action === 'manage_school_year') {
@@ -275,15 +263,11 @@ $classes = $classModel->all();
 $schoolYears = $schoolYearModel->all();
 
 $currentLogo = $settingsModel->get('app_logo', 'assets/img/logo.svg');
-$storedTwilioAccountSid = trim((string) $settingsModel->get('twilio_account_sid', ''));
-$storedTwilioAuthToken = trim((string) $settingsModel->get('twilio_auth_token', ''));
-$storedTwilioPhoneNumber = trim((string) $settingsModel->get('twilio_phone_number', ''));
-$storedTwilioWhatsAppNumber = trim((string) $settingsModel->get('twilio_whatsapp_number', ''));
-$twilioAccountSid = trim((string) (getenv('TWILIO_ACCOUNT_SID') ?: $storedTwilioAccountSid));
-$twilioAuthToken = trim((string) (getenv('TWILIO_AUTH_TOKEN') ?: $storedTwilioAuthToken));
-$twilioPhoneNumber = trim((string) (getenv('TWILIO_PHONE_NUMBER') ?: $storedTwilioPhoneNumber));
-$twilioWhatsAppNumber = trim((string) (getenv('TWILIO_WHATSAPP_NUMBER') ?: $storedTwilioWhatsAppNumber));
-$whatsAppConfigured = $twilioAccountSid !== '' && $twilioAuthToken !== '' && $twilioPhoneNumber !== '' && $twilioWhatsAppNumber !== '';
+$waEnabled = in_array(strtolower(trim((string) $settingsModel->get('whatsapp_web_enabled', '1'))), ['1','true','yes','on'], true);
+$waWorkerUrl = trim((string) $settingsModel->get('whatsapp_worker_url', getenv('WHATSAPP_WORKER_URL') ?: ''));
+$waWorkerToken = trim((string) $settingsModel->get('whatsapp_worker_token', ''));
+$waCountryCode = trim((string) $settingsModel->get('whatsapp_country_code_default', '250'));
+$waReady = $waEnabled && $waWorkerUrl !== '';
 ?>
 <?php
 $pageTitle = 'System Settings - SBMS';
@@ -501,50 +485,48 @@ require_once dirname(__DIR__) . '/includes/header.php';
                 </div>
 
                 <div class="settings-card" style="margin-bottom: 0;">
-                    <h2>WhatsApp / Twilio</h2>
-                    <p style="color: var(--of-muted); margin-bottom: 1.5rem;">Check whether WhatsApp messaging is connected and ready for parent notifications.</p>
+                    <h2>WhatsApp Web</h2>
+                    <p style="color: var(--of-muted); margin-bottom: 1.5rem;">Parent WhatsApp messages are queued in MySQL and sent by the Node <code>whatsapp-web.js</code> worker (no Twilio). Keep the worker running and the school phone linked.</p>
 
                     <div style="display: grid; gap: 0.85rem; margin-bottom: 1.25rem;">
                         <div class="form-group" style="margin-bottom: 0;">
-                            <label style="margin-bottom: 0.35rem;">Connection status</label>
-                            <div style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.55rem 0.8rem; border-radius: 999px; font-weight: 700; <?= $whatsAppConfigured ? 'background: rgba(16,185,129,0.12); color: #10b981; border: 1px solid rgba(16,185,129,0.25);' : 'background: rgba(245,158,11,0.12); color: #f59e0b; border: 1px solid rgba(245,158,11,0.25);' ?>">
-                                <span aria-hidden="true"><?= $whatsAppConfigured ? '✅' : '⚠️' ?></span>
-                                <?= $whatsAppConfigured ? 'WhatsApp connected' : 'Not fully configured' ?>
+                            <label style="margin-bottom: 0.35rem;">Status</label>
+                            <div style="display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.55rem 0.8rem; border-radius: 999px; font-weight: 700; <?= $waReady ? 'background: rgba(16,185,129,0.12); color: #10b981; border: 1px solid rgba(16,185,129,0.25);' : 'background: rgba(245,158,11,0.12); color: #f59e0b; border: 1px solid rgba(245,158,11,0.25);' ?>">
+                                <span aria-hidden="true"><?= $waReady ? '✅' : '⚠️' ?></span>
+                                <?= $waReady ? 'Configured' : ($waEnabled ? 'Worker URL needed' : 'Disabled') ?>
                             </div>
                         </div>
-
                         <div style="display: grid; gap: 0.5rem; color: var(--of-muted); font-size: 0.92rem;">
-                            <div><strong>Account SID:</strong> <?= $twilioAccountSid !== '' ? 'Loaded' : 'Missing' ?></div>
-                            <div><strong>Auth Token:</strong> <?= $twilioAuthToken !== '' ? 'Loaded' : 'Missing' ?></div>
-                            <div><strong>SMS Number:</strong> <?= $twilioPhoneNumber !== '' ? e($twilioPhoneNumber) : 'Missing' ?></div>
-                            <div><strong>WhatsApp Number:</strong> <?= $twilioWhatsAppNumber !== '' ? e($twilioWhatsAppNumber) : 'Missing' ?></div>
+                            <div><strong>Enabled:</strong> <?= $waEnabled ? 'Yes' : 'No' ?></div>
+                            <div><strong>Worker URL:</strong> <?= $waWorkerUrl !== '' ? e($waWorkerUrl) : 'Not set' ?></div>
+                            <div><strong>Default country code:</strong> +<?= e($waCountryCode ?: '250') ?></div>
                         </div>
                     </div>
 
                     <form method="POST" style="display: grid; gap: 1rem; margin-bottom: 1.25rem;">
                         <input type="hidden" name="action" value="update_messaging">
+                        <label style="display:flex; align-items:center; gap:0.6rem;">
+                            <input type="checkbox" name="whatsapp_web_enabled" value="1" <?= $waEnabled ? 'checked' : '' ?>>
+                            <span style="color: var(--of-ink);">Enable WhatsApp Web queue</span>
+                        </label>
                         <div class="form-group">
-                            <label for="twilio_account_sid">Twilio Account SID</label>
-                            <input type="text" id="twilio_account_sid" name="twilio_account_sid" value="<?= e($storedTwilioAccountSid) ?>" placeholder="ACxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx">
+                            <label for="whatsapp_worker_url">Worker health URL</label>
+                            <input type="text" id="whatsapp_worker_url" name="whatsapp_worker_url" value="<?= e($waWorkerUrl) ?>" placeholder="http://localhost:3100">
                         </div>
                         <div class="form-group">
-                            <label for="twilio_auth_token">Twilio Auth Token</label>
-                            <input type="password" id="twilio_auth_token" name="twilio_auth_token" value="" placeholder="<?= $storedTwilioAuthToken !== '' ? 'Leave blank to keep current token' : 'Enter your Twilio auth token' ?>">
+                            <label for="whatsapp_worker_token">Worker token (optional)</label>
+                            <input type="password" id="whatsapp_worker_token" name="whatsapp_worker_token" value="" placeholder="<?= $waWorkerToken !== '' ? 'Leave blank to keep current token' : 'Optional bearer token' ?>">
                         </div>
                         <div class="form-group">
-                            <label for="twilio_phone_number">Twilio SMS Number</label>
-                            <input type="text" id="twilio_phone_number" name="twilio_phone_number" value="<?= e($storedTwilioPhoneNumber) ?>" placeholder="+1415xxxxxxx">
+                            <label for="whatsapp_country_code_default">Default country code</label>
+                            <input type="text" id="whatsapp_country_code_default" name="whatsapp_country_code_default" value="<?= e($waCountryCode) ?>" placeholder="250">
                         </div>
-                        <div class="form-group">
-                            <label for="twilio_whatsapp_number">Twilio WhatsApp Number</label>
-                            <input type="text" id="twilio_whatsapp_number" name="twilio_whatsapp_number" value="<?= e($storedTwilioWhatsAppNumber) ?>" placeholder="+1415xxxxxxx">
-                        </div>
-                        <button type="submit" class="btn-primary">Save Messaging Settings</button>
+                        <button type="submit" class="btn-primary">Save WhatsApp Settings</button>
                     </form>
 
                     <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
-                        <a href="<?= e(app_base_url()) ?>/WHATSAPP_SETUP.md" class="btn-secondary" style="text-decoration: none; display: inline-block;">Setup Guide</a>
-                        <a href="<?= e(app_base_url()) ?>/test_whatsapp.php" class="btn-secondary" style="text-decoration: none; display: inline-block;">Run Test Script</a>
+                        <a href="<?= e(app_base_url()) ?>/parents/whatsapp-queue.php" class="btn-secondary" style="text-decoration: none; display: inline-block;">WhatsApp Queue</a>
+                        <a href="<?= e(app_base_url()) ?>/parents/whatsapp-test.php" class="btn-secondary" style="text-decoration: none; display: inline-block;">Test WhatsApp</a>
                     </div>
                 </div>
             </div>
