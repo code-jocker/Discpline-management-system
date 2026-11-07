@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace App\Services;
@@ -8,147 +9,195 @@ use PDO;
 use Throwable;
 
 /**
- * Durable handoff between PHP and the whatsapp-web.js worker.
- *
- * PHP only ever inserts rows; the Node worker claims them, sends over WhatsApp
- * Web, and writes the outcome back. That means a saved incident is not lost
- * when the school phone is offline.
+ * Durable WhatsApp queue backed by MySQL.
+ * PHP enqueues; a Node whatsapp-web.js worker claims and sends.
  */
-class WhatsAppQueueService
+final class WhatsAppQueueService
 {
-    private PDO $pdo;
+    private PDO $db;
 
-    public function __construct(?PDO $pdo = null)
+    public function __construct(?PDO $db = null)
     {
-        $this->pdo = $pdo ?? Database::connection();
+        $this->db = $db ?? Database::connection();
     }
 
     public function isAvailable(): bool
     {
-        return Database::tableExists('notification_queue')
-            && Database::tableExists('notification_logs');
+        try {
+            return Database::tableExists('notification_queue');
+        } catch (Throwable $e) {
+            return false;
+        }
     }
 
-    /**
-     * Inserts one job. Returns the new queue id, or null when the job is a
-     * duplicate (same dedupe key), the phone is invalid, or the queue is
-     * unavailable.
-     */
-    public function enqueue(
-        ?int $studentId,
-        string $phone,
-        string $message,
-        string $type = 'discipline_incident',
-        ?string $dedupeKey = null
-    ): ?int {
-        if (!$this->isAvailable()) {
+    public function isEnabled(): bool
+    {
+        try {
+            $db = $this->db;
+            if (!Database::tableExists('settings')) {
+                return true;
+            }
+            $stmt = $db->prepare("SELECT value FROM settings WHERE key_name = 'whatsapp_web_enabled' LIMIT 1");
+            $stmt->execute();
+            $val = $stmt->fetchColumn();
+            if ($val === false || $val === null || $val === '') {
+                return true;
+            }
+            return in_array(strtolower((string) $val), ['1', 'true', 'yes', 'on'], true);
+        } catch (Throwable $e) {
+            return true;
+        }
+    }
+
+    public function enqueue(?int $studentId, string $phone, string $message, string $type = 'discipline_incident', ?string $dedupeKey = null, int $maxAttempts = 5): ?int
+    {
+        if (!$this->isAvailable() || !$this->isEnabled()) {
             return null;
         }
 
-        $normalized = self::normalizePhone($phone);
+        $phone = $this->normalizePhone($phone);
         $message = trim($message);
-        if ($normalized === null || $message === '') {
+        $type = trim($type) !== '' ? substr(trim($type), 0, 50) : 'discipline_incident';
+
+        if ($phone === '' || $message === '') {
             return null;
         }
 
+        $maxAttempts = max(1, min(20, $maxAttempts));
+
         try {
-            $statement = $this->pdo->prepare(
-                'INSERT INTO notification_queue
-                    (student_id, parent_phone, message, notification_type, dedupe_key, status, next_attempt_at)
-                 VALUES (:student_id, :parent_phone, :message, :notification_type, :dedupe_key, \'pending\', NOW())
-                 ON DUPLICATE KEY UPDATE id = id'
-            );
-            $statement->execute([
-                'student_id' => $studentId,
-                'parent_phone' => $normalized,
-                'message' => $message,
-                'notification_type' => $type,
-                'dedupe_key' => $dedupeKey,
-            ]);
+            $sql = 'INSERT INTO notification_queue
+                    (student_id, parent_phone, message, notification_type, dedupe_key, status, attempts, max_attempts, next_attempt_at)
+                    VALUES (:student_id, :parent_phone, :message, :notification_type, :dedupe_key, "pending", 0, :max_attempts, NOW())';
+            $stmt = $this->db->prepare($sql);
+            $stmt->bindValue(':student_id', $studentId, $studentId === null ? PDO::PARAM_NULL : PDO::PARAM_INT);
+            $stmt->bindValue(':parent_phone', $phone);
+            $stmt->bindValue(':message', $message);
+            $stmt->bindValue(':notification_type', $type);
+            $stmt->bindValue(':dedupe_key', $dedupeKey !== null && $dedupeKey !== '' ? substr($dedupeKey, 0, 120) : null, ($dedupeKey !== null && $dedupeKey !== '') ? PDO::PARAM_STR : PDO::PARAM_NULL);
+            $stmt->bindValue(':max_attempts', $maxAttempts, PDO::PARAM_INT);
+            $stmt->execute();
 
-            $id = (int) $this->pdo->lastInsertId();
-            if ($id === 0) {
-                return null; // duplicate dedupe_key
+            return (int) $this->db->lastInsertId();
+        } catch (Throwable $e) {
+            // Duplicate dedupe_key - treat as already queued
+            if ($dedupeKey && str_contains(strtolower($e->getMessage()), 'duplicate')) {
+                return $this->findByDedupeKey($dedupeKey);
             }
-
-            return $id;
-        } catch (Throwable $exception) {
-            Database::logError('WhatsApp queue insert failed', [
-                'student_id' => $studentId,
-                'exception' => $exception->getMessage(),
-            ]);
+            Database::logError('WhatsApp enqueue failed', ['error' => $e->getMessage(), 'type' => $type]);
             return null;
         }
     }
 
+    public function findByDedupeKey(string $dedupeKey): ?int
+    {
+        try {
+            $stmt = $this->db->prepare('SELECT id FROM notification_queue WHERE dedupe_key = :k LIMIT 1');
+            $stmt->execute(['k' => substr($dedupeKey, 0, 120)]);
+            $id = $stmt->fetchColumn();
+            return $id ? (int) $id : null;
+        } catch (Throwable $e) {
+            return null;
+        }
+    }
+
+    public function retry(int $queueId): bool
+    {
+        if ($queueId <= 0 || !$this->isAvailable()) {
+            return false;
+        }
+        try {
+            $stmt = $this->db->prepare(
+                'UPDATE notification_queue
+                 SET status = "pending", next_attempt_at = NOW(), last_error = NULL
+                 WHERE id = :id AND status = "failed"'
+            );
+            $stmt->execute(['id' => $queueId]);
+            return $stmt->rowCount() > 0;
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
+    public function cancel(int $queueId): bool
+    {
+        if ($queueId <= 0 || !$this->isAvailable()) {
+            return false;
+        }
+        try {
+            $stmt = $this->db->prepare(
+                'UPDATE notification_queue SET status = "failed", last_error = "Cancelled by administrator"
+                 WHERE id = :id AND status = "pending"'
+            );
+            $stmt->execute(['id' => $queueId]);
+            return $stmt->rowCount() > 0;
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
+    public function retryAllFailed(): int
+    {
+        if (!$this->isAvailable()) {
+            return 0;
+        }
+        try {
+            $stmt = $this->db->prepare(
+                'UPDATE notification_queue
+                 SET status = "pending", next_attempt_at = NOW(), last_error = NULL, locked_at = NULL
+                 WHERE status = "failed"'
+            );
+            $stmt->execute();
+            return $stmt->rowCount();
+        } catch (Throwable $e) {
+            try {
+                $stmt = $this->db->prepare(
+                    'UPDATE notification_queue SET status = "pending", next_attempt_at = NOW(), last_error = NULL WHERE status = "failed"'
+                );
+                $stmt->execute();
+                return $stmt->rowCount();
+            } catch (Throwable $e2) {
+                return 0;
+            }
+        }
+    }
+
     /**
-     * Queues one message for every parent contact of the student that has
-     * chosen WhatsApp and saved a WhatsApp number.
-     *
-     * @return array{queued:int, skipped:int, ids:array<int,int>}
+     * @return array<int, array<string, mixed>>
      */
-    public function enqueueForStudent(
-        int $studentId,
-        string $message,
-        string $type = 'discipline_incident',
-        ?string $dedupeKey = null
-    ): array {
-        $result = ['queued' => 0, 'skipped' => 0, 'ids' => []];
-
-        if (!$this->isAvailable() || $studentId <= 0) {
-            return $result;
+    public function recent(int $limit = 60, ?string $status = null): array
+    {
+        if (!$this->isAvailable()) {
+            return [];
         }
+        $limit = max(1, min(200, $limit));
+        $allowed = ['pending', 'processing', 'sent', 'failed'];
 
         try {
-            $statement = $this->pdo->prepare(
-                'SELECT id, whatsapp_number
-                   FROM parent_contacts
-                  WHERE student_id = :student_id
-                    AND contact_preference = \'whatsapp\'
-                    AND whatsapp_number IS NOT NULL
-                    AND whatsapp_number <> \'\'
-                  ORDER BY is_primary DESC, id ASC'
-            );
-            $statement->execute(['student_id' => $studentId]);
-            $contacts = $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
-        } catch (Throwable $exception) {
-            Database::logError('WhatsApp queue contact lookup failed', [
-                'student_id' => $studentId,
-                'exception' => $exception->getMessage(),
-            ]);
-            return $result;
-        }
-
-        if ($contacts === []) {
-            return $result;
-        }
-
-        foreach ($contacts as $contact) {
-            $contactKey = $dedupeKey !== null
-                ? $dedupeKey . ':contact-' . (int) $contact['id']
-                : null;
-            $id = $this->enqueue(
-                $studentId,
-                (string) $contact['whatsapp_number'],
-                $message,
-                $type,
-                $contactKey
-            );
-
-            if ($id === null) {
-                $result['skipped']++;
-                continue;
+            $where = '';
+            $params = [];
+            if ($status !== null && in_array($status, $allowed, true)) {
+                $where = 'WHERE nq.status = :status';
+                $params['status'] = $status;
             }
 
-            $result['queued']++;
-            $result['ids'][] = $id;
+            $sql = "SELECT nq.*, s.full_name, s.student_code
+                    FROM notification_queue nq
+                    LEFT JOIN students s ON s.id = nq.student_id
+                    {$where}
+                    ORDER BY nq.id DESC
+                    LIMIT {$limit}";
+            $stmt = $this->db->prepare($sql);
+            $stmt->execute($params);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        } catch (Throwable $e) {
+            Database::logError('WhatsApp queue recent failed', ['error' => $e->getMessage()]);
+            return [];
         }
-
-        return $result;
     }
 
     /**
-     * @return array<string,int>
+     * @return array{pending:int,processing:int,sent:int,failed:int}
      */
     public function statusCounts(): array
     {
@@ -156,183 +205,111 @@ class WhatsAppQueueService
         if (!$this->isAvailable()) {
             return $counts;
         }
-
         try {
-            $rows = $this->pdo->query(
-                'SELECT status, COUNT(*) AS total FROM notification_queue GROUP BY status'
-            )->fetchAll(PDO::FETCH_ASSOC) ?: [];
+            $rows = $this->db->query("SELECT status, COUNT(*) c FROM notification_queue GROUP BY status")->fetchAll(PDO::FETCH_ASSOC) ?: [];
             foreach ($rows as $row) {
-                $counts[(string) $row['status']] = (int) $row['total'];
+                $k = (string) ($row['status'] ?? '');
+                if (array_key_exists($k, $counts)) {
+                    $counts[$k] = (int) ($row['c'] ?? 0);
+                }
             }
-        } catch (Throwable $exception) {
-            Database::logError('WhatsApp queue counts failed', ['exception' => $exception->getMessage()]);
+        } catch (Throwable $e) {
+            // ignore
         }
-
         return $counts;
     }
 
     /**
-     * @return array<int,array<string,mixed>>
-     */
-    public function recent(int $limit = 40, ?string $status = null): array
-    {
-        if (!$this->isAvailable()) {
-            return [];
-        }
-
-        $limit = max(1, min(200, $limit));
-        $sql = 'SELECT q.id, q.student_id, q.parent_phone, q.message, q.notification_type,
-                       q.status, q.attempts, q.max_attempts, q.next_attempt_at, q.sent_at,
-                       q.last_error, q.created_at,
-                       s.full_name, s.student_code
-                  FROM notification_queue q
-                  LEFT JOIN students s ON s.id = q.student_id';
-        $params = [];
-
-        if ($status !== null && in_array($status, ['pending', 'processing', 'sent', 'failed'], true)) {
-            $sql .= ' WHERE q.status = :status';
-            $params['status'] = $status;
-        }
-
-        $sql .= ' ORDER BY q.id DESC LIMIT ' . $limit;
-
-        try {
-            $statement = $this->pdo->prepare($sql);
-            $statement->execute($params);
-            return $statement->fetchAll(PDO::FETCH_ASSOC) ?: [];
-        } catch (Throwable $exception) {
-            Database::logError('WhatsApp queue list failed', ['exception' => $exception->getMessage()]);
-            return [];
-        }
-    }
-
-    public function retry(int $id): bool
-    {
-        if (!$this->isAvailable() || $id <= 0) {
-            return false;
-        }
-
-        try {
-            $statement = $this->pdo->prepare(
-                'UPDATE notification_queue
-                    SET status = \'pending\',
-                        attempts = 0,
-                        last_error = NULL,
-                        next_attempt_at = NOW()
-                  WHERE id = :id
-                    AND status IN (\'failed\')'
-            );
-            $statement->execute(['id' => $id]);
-            return $statement->rowCount() > 0;
-        } catch (Throwable $exception) {
-            Database::logError('WhatsApp queue retry failed', ['queue_id' => $id, 'exception' => $exception->getMessage()]);
-            return false;
-        }
-    }
-
-    public function cancel(int $id): bool
-    {
-        if (!$this->isAvailable() || $id <= 0) {
-            return false;
-        }
-
-        try {
-            $statement = $this->pdo->prepare(
-                'UPDATE notification_queue
-                    SET status = \'failed\',
-                        last_error = \'Cancelled by staff\'
-                  WHERE id = :id
-                    AND status IN (\'pending\')'
-            );
-            $statement->execute(['id' => $id]);
-            return $statement->rowCount() > 0;
-        } catch (Throwable $exception) {
-            Database::logError('WhatsApp queue cancel failed', ['queue_id' => $id, 'exception' => $exception->getMessage()]);
-            return false;
-        }
-    }
-
-    /**
-     * Best-effort probe of the Node worker's /health endpoint.
-     *
-     * @return array{reachable:bool, ready:bool, workerRunning:bool, queue:array<string,int>, error:?string}
+     * @return array{reachable:bool,ready:bool,error:?string,data:array<string,mixed>}
      */
     public function workerHealth(): array
     {
-        $url = rtrim((string) (getenv('SBMS_WHATSAPP_URL') ?: 'http://127.0.0.1:3001'), '/') . '/health';
-        $token = (string) (getenv('SBMS_WHATSAPP_HEALTH_TOKEN') ?: '');
-        $result = ['reachable' => false, 'ready' => false, 'workerRunning' => false, 'queue' => [], 'error' => null];
-
-        if (!function_exists('curl_init')) {
-            $result['error'] = 'PHP cURL extension is not available.';
-            return $result;
+        $url = $this->getSetting('whatsapp_worker_url', '');
+        $token = $this->getSetting('whatsapp_worker_token', '');
+        if ($url === '') {
+            $url = (string) (getenv('WHATSAPP_WORKER_URL') ?: '');
+        }
+        if ($token === '') {
+            $token = (string) (getenv('WHATSAPP_WORKER_TOKEN') ?: '');
         }
 
-        try {
-            $ch = curl_init($url);
-            curl_setopt_array($ch, [
-                CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_CONNECTTIMEOUT => 2,
-                CURLOPT_TIMEOUT => 3,
-                CURLOPT_HTTPHEADER => $token !== '' ? ['x-health-token: ' . $token] : [],
-            ]);
-            $body = curl_exec($ch);
-            $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $curlError = curl_error($ch);
-            curl_close($ch);
-
-            if ($body === false || $httpCode === 0) {
-                $result['error'] = $curlError !== '' ? $curlError : 'Worker is not reachable.';
-                return $result;
-            }
-
-            if ($httpCode === 401) {
-                $result['error'] = 'Worker rejected the health token.';
-                return $result;
-            }
-
-            $payload = json_decode((string) $body, true);
-            if (!is_array($payload)) {
-                $result['error'] = 'Worker returned an invalid health response.';
-                return $result;
-            }
-
-            $result['reachable'] = true;
-            $result['ready'] = !empty($payload['whatsapp']['ready']);
-            $result['workerRunning'] = !empty($payload['workerRunning']);
-            $result['queue'] = is_array($payload['queue'] ?? null) ? $payload['queue'] : [];
-            $result['error'] = $payload['dbError'] ?? null;
-        } catch (Throwable $exception) {
-            $result['error'] = $exception->getMessage();
+        $url = rtrim(trim($url), '/');
+        if ($url === '') {
+            return ['reachable' => false, 'ready' => false, 'error' => 'Worker URL not configured', 'data' => []];
         }
 
-        return $result;
+        $healthUrl = $url . '/health';
+        $ch = curl_init($healthUrl);
+        if ($ch === false) {
+            return ['reachable' => false, 'ready' => false, 'error' => 'cURL unavailable', 'data' => []];
+        }
+
+        $headers = ['Accept: application/json'];
+        if ($token !== '') {
+            $headers[] = 'X-Worker-Token: ' . $token;
+            $headers[] = 'Authorization: Bearer ' . $token;
+        }
+
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 4,
+            CURLOPT_CONNECTTIMEOUT => 3,
+            CURLOPT_HTTPHEADER => $headers,
+            CURLOPT_SSL_VERIFYPEER => true,
+        ]);
+
+        $body = curl_exec($ch);
+        $err = curl_error($ch);
+        $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($body === false || $code < 200 || $code >= 300) {
+            return ['reachable' => false, 'ready' => false, 'error' => $err !== '' ? $err : ('HTTP ' . $code), 'data' => []];
+        }
+
+        $data = json_decode((string) $body, true);
+        if (!is_array($data)) {
+            $data = [];
+        }
+
+        $ready = !empty($data['whatsappReady']) || !empty($data['ready']) || !empty($data['ok']);
+        return ['reachable' => true, 'ready' => (bool) $ready, 'error' => null, 'data' => $data];
     }
 
-    /**
-     * Turns 0788123456 / +250 788 123 456 / 00250788123456 into 250788123456,
-     * matching the Node worker's normaliser.
-     */
-    public static function normalizePhone(string $phone): ?string
+    public function normalizePhone(string $phone): string
     {
+        $phone = trim($phone);
+        if ($phone === '') {
+            return '';
+        }
+        $hasPlus = str_starts_with($phone, '+');
         $digits = preg_replace('/\D+/', '', $phone) ?? '';
         if ($digits === '') {
-            return null;
+            return '';
         }
-
-        if (str_starts_with($digits, '00')) {
-            $digits = substr($digits, 2);
+        $defaultCc = preg_replace('/\D+/', '', $this->getSetting('whatsapp_country_code_default', '250')) ?? '250';
+        if (!$hasPlus) {
+            if (str_starts_with($digits, '0')) {
+                $digits = $defaultCc . substr($digits, 1);
+            } elseif (!str_starts_with($digits, $defaultCc)) {
+                $digits = $defaultCc . $digits;
+            }
         }
+        return '+' . $digits;
+    }
 
-        if (strlen($digits) === 10 && str_starts_with($digits, '0')) {
-            $digits = '250' . substr($digits, 1);
+    private function getSetting(string $key, string $default): string
+    {
+        try {
+            if (!Database::tableExists('settings')) {
+                return $default;
+            }
+            $stmt = $this->db->prepare('SELECT value FROM settings WHERE key_name = :k LIMIT 1');
+            $stmt->execute(['k' => $key]);
+            $val = $stmt->fetchColumn();
+            return ($val !== false && $val !== null && $val !== '') ? (string) $val : $default;
+        } catch (Throwable $e) {
+            return $default;
         }
-
-        $length = strlen($digits);
-        if ($length < 10 || $length > 15) {
-            return null;
-        }
-
-        return $digits;
     }
 }

@@ -71,3 +71,9 @@ gk/
 
 # Deployment build artifact
 deploy/infinityfree-backend.zip
+
+# WhatsApp worker
+whatsapp-worker/node_modules/
+whatsapp-worker/.wwebjs_auth/
+whatsapp-worker/.env
+

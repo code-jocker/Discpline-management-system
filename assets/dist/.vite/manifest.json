@@ -5,8 +5,13 @@
     "isEntry": true
   },
   "assets/css/auth.css": {
-    "file": "assets/auth-BvSJnP5H.css",
+    "file": "assets/auth-B3DX8Y0d.css",
     "src": "assets/css/auth.css",
+    "isEntry": true
+  },
+  "assets/css/components.css": {
+    "file": "assets/components-DnCKoNiP.css",
+    "src": "assets/css/components.css",
     "isEntry": true
   },
   "assets/css/discipline-engine.css": {
@@ -20,8 +25,13 @@
     "isEntry": true
   },
   "assets/css/student-management.css": {
-    "file": "assets/student-management-Cs0Th6FL.css",
+    "file": "assets/student-management-BkPIPfti.css",
     "src": "assets/css/student-management.css",
+    "isEntry": true
+  },
+  "assets/css/tokens.css": {
+    "file": "assets/tokens-DzI5MlK_.css",
+    "src": "assets/css/tokens.css",
     "isEntry": true
   },
   "assets/js/assistant.js": {
@@ -54,8 +64,14 @@
     "src": "assets/js/settings.js",
     "isEntry": true
   },
+  "assets/js/sidebar.js": {
+    "file": "assets/sidebar.js-B7u9QVNc.js",
+    "name": "sidebar.js",
+    "src": "assets/js/sidebar.js",
+    "isEntry": true
+  },
   "assets/js/student-management.js": {
-    "file": "assets/student-management.js-5959o9G-.js",
+    "file": "assets/student-management.js-B3hqftvF.js",
     "name": "student-management.js",
     "src": "assets/js/student-management.js",
     "isEntry": true
@@ -66,10 +82,22 @@
     "src": "assets/js/theme.js",
     "isEntry": true
   },
+  "assets/js/toast.js": {
+    "file": "assets/toast.js-BYU7mnaX.js",
+    "name": "toast.js",
+    "src": "assets/js/toast.js",
+    "isEntry": true
+  },
   "assets/js/user-management.js": {
     "file": "assets/user-management.js-C2OLrC2U.js",
     "name": "user-management.js",
     "src": "assets/js/user-management.js",
+    "isEntry": true
+  },
+  "assets/js/vendor/chart.js": {
+    "file": "assets/vendor/chart.js-oKxzJk_m.js",
+    "name": "vendor/chart.js",
+    "src": "assets/js/vendor/chart.js",
     "isEntry": true
   }
 }

@@ -17,11 +17,16 @@ export default defineConfig({
         'student-management.js': resolve(__dirname, 'assets/js/student-management.js'),
         'theme.js': resolve(__dirname, 'assets/js/theme.js'),
         'user-management.js': resolve(__dirname, 'assets/js/user-management.js'),
+        'toast.js': resolve(__dirname, 'assets/js/toast.js'),
+        'sidebar.js': resolve(__dirname, 'assets/js/sidebar.js'),
+        'vendor/chart.js': resolve(__dirname, 'assets/js/vendor/chart.js'),
         'assistant.css': resolve(__dirname, 'assets/css/assistant.css'),
         'auth.css': resolve(__dirname, 'assets/css/auth.css'),
         'discipline-engine.css': resolve(__dirname, 'assets/css/discipline-engine.css'),
         'settings.css': resolve(__dirname, 'assets/css/settings.css'),
-        'student-management.css': resolve(__dirname, 'assets/css/student-management.css')
+        'student-management.css': resolve(__dirname, 'assets/css/student-management.css'),
+        'tokens.css': resolve(__dirname, 'assets/css/tokens.css'),
+        'components.css': resolve(__dirname, 'assets/css/components.css')
       }
     }
   }

@@ -367,30 +367,30 @@ $sbms_sidebar_profile_pic = $sbms_sidebar_full_user['profile_picture'] ?? null;
             <div class="sidebar-group" style="margin-top: 0.5rem;">
                 <p class="eyebrow" style="font-size: 0.7rem; opacity: 0.4; margin: 0 0 0.5rem 0;">Communication</p>
                 <div style="display: flex; flex-direction: column; gap: 0.4rem;">
-                    <a class="sidebar-link <?= ($sbms_sidebar_currentPath === app_base_url() . '/letters/index.php') ? 'active' : '' ?>" href="<?= e(app_base_url()) ?>/letters/index.php">
-                        <span class="sidebar-link-inner">
-                            <span class="sidebar-link-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M4 7l8 6 8-6"/></svg></span>
-                            <span class="sidebar-link-text"><?= e(__('letters')) ?></span>
-                        </span>
-                    </a>
-                    <a class="sidebar-link <?= ($sbms_sidebar_currentPath === app_base_url() . '/parents/index.php') ? 'active' : '' ?>" href="<?= e(app_base_url()) ?>/parents/index.php">
-                        <span class="sidebar-link-inner">
-                            <span class="sidebar-link-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16 19v-1a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v1"/><circle cx="11" cy="7" r="3"/><path d="M22 19v-1a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
-                            <span class="sidebar-link-text">Parent Contacts</span>
-                        </span>
-                    </a>
-                    <a class="sidebar-link <?= ($sbms_sidebar_currentPath === app_base_url() . '/parents/whatsapp-test.php') ? 'active' : '' ?>" href="<?= e(app_base_url()) ?>/parents/whatsapp-test.php">
-                        <span class="sidebar-link-inner">
-                            <span class="sidebar-link-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.5 8.5 0 0 1-12.6 7.4L3 21l2.3-5.4A8.5 8.5 0 1 1 21 11.5Z"/><path d="M8 10.5c.2-.5.8-.8 1.3-.9.3-.1.7 0 1 .2l.6.5c.3.2.4.6.2 1-.2.5-.8.9-1.3 1.1-.5.2-1 .5-1.3 1-.3.5-.2 1.1.1 1.5l.6.9c.3.4.9.5 1.4.3.5-.2 1.1-.6 1.8-1.1"/></svg></span>
-                            <span class="sidebar-link-text">Test WhatsApp</span>
-                        </span>
-                    </a>
-                    <a class="sidebar-link <?= ($sbms_sidebar_currentPath === app_base_url() . '/parents/whatsapp-queue.php') ? 'active' : '' ?>" href="<?= e(app_base_url()) ?>/parents/whatsapp-queue.php">
-                        <span class="sidebar-link-inner">
-                            <span class="sidebar-link-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h16"/><path d="M4 12h10"/><path d="M4 18h7"/><path d="M18 12l3 3-3 3"/></svg></span>
-                            <span class="sidebar-link-text">WhatsApp Queue</span>
-                        </span>
-                    </a>
+                <a class="sidebar-link <?= ($sbms_sidebar_currentPath === app_base_url() . '/letters/index.php') ? 'active' : '' ?>" href="<?= e(app_base_url()) ?>/letters/index.php">
+                    <span class="sidebar-link-inner">
+                        <span class="sidebar-link-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 5h16v14H4z"/><path d="M4 7l8 6 8-6"/></svg></span>
+                        <span class="sidebar-link-text"><?= e(__('letters')) ?></span>
+                    </span>
+                </a>
+                <a class="sidebar-link <?= ($sbms_sidebar_currentPath === app_base_url() . '/parents/index.php') ? 'active' : '' ?>" href="<?= e(app_base_url()) ?>/parents/index.php">
+                    <span class="sidebar-link-inner">
+                        <span class="sidebar-link-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16 19v-1a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v1"/><circle cx="11" cy="7" r="3"/><path d="M22 19v-1a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+                        <span class="sidebar-link-text">Parent Contacts</span>
+                    </span>
+                </a>
+                <a class="sidebar-link <?= ($sbms_sidebar_currentPath === app_base_url() . '/parents/whatsapp-queue.php') ? 'active' : '' ?>" href="<?= e(app_base_url()) ?>/parents/whatsapp-queue.php">
+                    <span class="sidebar-link-inner">
+                        <span class="sidebar-link-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 4h16v4H4z"/><path d="M4 10h16v4H4z"/><path d="M4 16h16v4H4z"/></svg></span>
+                        <span class="sidebar-link-text">WhatsApp Queue</span>
+                    </span>
+                </a>
+                <a class="sidebar-link <?= ($sbms_sidebar_currentPath === app_base_url() . '/parents/whatsapp-test.php') ? 'active' : '' ?>" href="<?= e(app_base_url()) ?>/parents/whatsapp-test.php">
+                    <span class="sidebar-link-inner">
+                        <span class="sidebar-link-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 11.5a8.5 8.5 0 0 1-12.6 7.4L3 21l2.3-5.4A8.5 8.5 0 1 1 21 11.5Z"/><path d="M8 10.5c.2-.5.8-.8 1.3-.9.3-.1.7 0 1 .2l.6.5c.3.2.4.6.2 1-.2.5-.8.9-1.3 1.1-.5.2-1 .5-1.3 1-.3.5-.2 1.1.1 1.5l.6.9c.3.4.9.5 1.4.3.5-.2 1.1-.6 1.8-1.1"/></svg></span>
+                        <span class="sidebar-link-text">Test WhatsApp</span>
+                    </span>
+                </a>
                 </div>
             </div>
             <a class="sidebar-link <?= ($sbms_sidebar_currentPath === app_base_url() . '/dashboard/analytics.php') ? 'active' : '' ?>" href="<?= e(app_base_url()) ?>/dashboard/analytics.php">
@@ -430,13 +430,6 @@ $sbms_sidebar_profile_pic = $sbms_sidebar_full_user['profile_picture'] ?? null;
             </span>
             <span id="sidebarNotifBadge" title="<?= e($sbms_sidebar_notificationScope['description']) ?>" style="<?= $sbms_sidebar_unreadCount === 0 ? 'display: none;' : '' ?> background: #ef4444; color: white; border-radius: 12px; padding: 2px 8px; font-size: 0.7rem; font-weight: bold; min-width: 20px; text-align: center;">
                 <?= $sbms_sidebar_unreadCount ?>
-            </span>
-        </a>
-
-        <a class="sidebar-link <?= ($sbms_sidebar_currentPath === app_base_url() . '/help/index.php') ? 'active' : '' ?>" href="<?= e(app_base_url()) ?>/help/index.php">
-            <span class="sidebar-link-inner">
-                <span class="sidebar-link-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.6 9a2.5 2.5 0 0 1 4.8 1c0 1.7-2.4 2-2.4 3.6"/><path d="M12 17.2h.01"/></svg></span>
-                <span class="sidebar-link-text">How it works</span>
             </span>
         </a>
 

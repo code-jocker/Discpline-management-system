@@ -28,17 +28,21 @@ $allowedStatuses = ['pending', 'processing', 'sent', 'failed'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     assert_csrf_token($_POST['csrf_token'] ?? null);
-    $action = (string) ($_POST['queue_action'] ?? '');
-    $queueId = (int) ($_POST['queue_id'] ?? 0);
-    $filter = (string) ($_POST['status_filter'] ?? '');
-    $returnStatus = in_array($filter, $allowedStatuses, true) ? '&status=' . $filter : '';
+        $action = (string) ($_POST['queue_action'] ?? '');
+        $queueId = (int) ($_POST['queue_id'] ?? 0);
+        $filter = (string) ($_POST['status_filter'] ?? '');
+        $returnStatus = in_array($filter, $allowedStatuses, true) ? '&status=' . $filter : '';
 
-    $ok = false;
-    if ($action === 'retry') {
-        $ok = $queueService->retry($queueId);
-    } elseif ($action === 'cancel') {
-        $ok = $queueService->cancel($queueId);
-    }
+        $ok = false;
+        if ($queueId > 0 && $action === 'retry') {
+            $ok = $queueService->retry($queueId);
+        } elseif ($queueId > 0 && $action === 'cancel') {
+            $ok = $queueService->cancel($queueId);
+        } elseif ($action === 'retry_failed') {
+            $n = $queueService->retryAllFailed();
+            header('Location: ' . app_base_url() . '/parents/whatsapp-queue.php?success=' . rawurlencode($n . ' failed job(s) queued for retry.') . $returnStatus);
+            exit;
+        }
 
     $message = $ok
         ? ($action === 'retry' ? 'Job returned to the queue.' : 'Job cancelled.')
@@ -67,6 +71,8 @@ try {
     $optInContacts = 0;
 }
 
+$flashSuccess = trim((string) ($_GET['success'] ?? ''));
+$flashError = trim((string) ($_GET['error'] ?? ''));
 $totalJobs = array_sum($counts);
 
 $pageTitle = 'SBMS WhatsApp Queue';
@@ -120,6 +126,9 @@ $statusTone = static function (string $status): string {
     .queue-empty { padding: 2rem 1rem; text-align: center; opacity: 0.7; }
     .queue-hint { margin-top: 1rem; padding: 1rem 1.1rem; border-radius: 12px; border: 1px dashed rgba(148, 163, 184, 0.35); font-size: 0.85rem; line-height: 1.6; }
     .queue-hint code { background: rgba(15, 23, 42, 0.55); padding: 0.1rem 0.4rem; border-radius: 5px; }
+    .queue-flash { margin-bottom: 1rem; padding: 0.8rem 1rem; border-radius: 10px; font-size: 0.9rem; }
+    .queue-flash.is-success { background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.4); color: #86efac; }
+    .queue-flash.is-error { background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); color: #fca5a5; }
     @media (max-width: 767px) {
         .queue-hero h1 { font-size: 1.55rem; }
         .queue-card strong { font-size: 1.5rem; }
@@ -146,6 +155,13 @@ $statusTone = static function (string $status): string {
         <?php endif; ?>
     </div>
 </header>
+
+<?php if ($flashSuccess !== ''): ?>
+    <div class="queue-flash is-success" role="status"><?= e($flashSuccess) ?></div>
+<?php endif; ?>
+<?php if ($flashError !== ''): ?>
+    <div class="queue-flash is-error" role="alert"><?= e($flashError) ?></div>
+<?php endif; ?>
 
 <section class="queue-grid" aria-label="Queue totals">
     <article class="queue-card">
@@ -176,15 +192,24 @@ $statusTone = static function (string $status): string {
 </section>
 
 <div class="queue-toolbar">
-    <nav class="queue-tabs" aria-label="Filter queue by status">
-        <a class="queue-tab <?= $statusFilter === '' ? 'is-active' : '' ?>" href="<?= e(app_base_url()) ?>/parents/whatsapp-queue.php">All (<?= $totalJobs ?>)</a>
-        <?php foreach ($allowedStatuses as $status): ?>
-            <a class="queue-tab <?= $statusFilter === $status ? 'is-active' : '' ?>" href="<?= e(app_base_url()) ?>/parents/whatsapp-queue.php?status=<?= e($status) ?>">
-                <?= e(ucfirst($status)) ?> (<?= (int) $counts[$status] ?>)
-            </a>
-        <?php endforeach; ?>
-    </nav>
-    <a class="queue-btn" href="<?= e(app_base_url()) ?>/parents/whatsapp-queue.php<?= $statusFilter !== '' ? '?status=' . e($statusFilter) : '' ?>" style="text-decoration: none; display: inline-flex; align-items: center;">Refresh</a>
+        <nav class="queue-tabs" aria-label="Filter queue by status">
+            <a class="queue-tab <?= $statusFilter === '' ? 'is-active' : '' ?>" href="<?= e(app_base_url()) ?>/parents/whatsapp-queue.php">All (<?= $totalJobs ?>)</a>
+            <?php foreach ($allowedStatuses as $status): ?>
+                <a class="queue-tab <?= $statusFilter === $status ? 'is-active' : '' ?>" href="<?= e(app_base_url()) ?>/parents/whatsapp-queue.php?status=<?= e($status) ?>">
+                    <?= e(ucfirst($status)) ?> (<?= (int) ($counts[$status] ?? 0) ?>)
+                </a>
+            <?php endforeach; ?>
+        </nav>
+        <div style="display:flex; gap:.5rem; flex-wrap:wrap; align-items:center;">
+            <a class="queue-btn" href="<?= e(app_base_url()) ?>/parents/whatsapp-test.php" style="text-decoration:none; display:inline-flex; align-items:center;">Test WhatsApp</a>
+            <form method="post" style="margin:0;">
+                <?= csrf_input() ?>
+                <input type="hidden" name="queue_action" value="retry_failed">
+                <input type="hidden" name="status_filter" value="<?= e($statusFilter) ?>">
+                <button type="submit" class="queue-btn">Retry all failed</button>
+            </form>
+            <a class="queue-btn" href="<?= e(app_base_url()) ?>/parents/whatsapp-queue.php<?= $statusFilter !== '' ? '?status=' . e($statusFilter) : '' ?>" style="text-decoration:none; display:inline-flex; align-items:center;">Refresh</a>
+        </div>
 </div>
 
 <?php if ($jobs === []): ?>
@@ -210,17 +235,16 @@ $statusTone = static function (string $status): string {
                 <?php foreach ($jobs as $job): ?>
                     <tr>
                         <td><?= (int) $job['id'] ?></td>
-                        <td>
-                            <?php if (!empty($job['full_name'])): ?>
-                                <strong><?= e((string) $job['full_name']) ?></strong>
+                            <td>
+                                <strong><?= e((string) ($job['full_name'] ?? '')) ?></strong>
                                 <?php if (!empty($job['student_code'])): ?>
                                     <div style="opacity: 0.65; font-size: 0.78rem;">ID <?= e((string) $job['student_code']) ?></div>
                                 <?php endif; ?>
-                            <?php else: ?>
-                                <span style="opacity: 0.6;">Student removed</span>
-                            <?php endif; ?>
-                        </td>
-                        <td><?= e((string) $job['parent_phone']) ?></td>
+                                <?php if (empty($job['full_name'])): ?>
+                                    <span style="opacity: 0.6;">Student removed</span>
+                                <?php endif; ?>
+                            </td>
+                            <td><?= e((string) ($job['parent_phone'] ?? $job['recipient_phone'] ?? '')) ?></td>
                         <td>
                             <div class="queue-msg"><?= e((string) $job['message']) ?></div>
                             <?php if (!empty($job['last_error'])): ?>
@@ -228,9 +252,9 @@ $statusTone = static function (string $status): string {
                             <?php endif; ?>
                         </td>
                         <td><span class="queue-badge <?= e($statusTone((string) $job['status'])) ?>"><?= e((string) $job['status']) ?></span></td>
-                        <td><?= (int) $job['attempts'] ?> / <?= (int) $job['max_attempts'] ?></td>
+                        <td><?= (int) ($job['attempts'] ?? 0) ?> / <?= (int) ($job['max_attempts'] ?? 5) ?></td>
                         <td>
-                            <?= e((string) $job['created_at']) ?>
+                            <?= e((string) ($job['created_at'] ?? '')) ?>
                             <?php if (!empty($job['sent_at'])): ?>
                                 <div style="opacity: 0.65; font-size: 0.78rem;">sent <?= e((string) $job['sent_at']) ?></div>
                             <?php endif; ?>
