@@ -17,6 +17,18 @@ if (!$bootstrapMode) {
     $canManageUsers = !empty($currentUser['id']) && $userModel->hasPermission((int) $currentUser['id'], 'manage_users');
 }
 
+// Do not expose an account-creation form after bootstrap unless the current
+// session has the explicit user-management permission. The controller repeats
+// this authorization check so direct POST requests cannot bypass the page gate.
+if (!$bootstrapMode && !$canManageUsers) {
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        json_response(['status' => 'error', 'message' => 'You are not authorized to create user accounts.'], 403);
+    }
+
+    header('Location: ' . app_base_url() . '/auth/login.php');
+    exit;
+}
+
 $roleOptions = $authController->roles();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
