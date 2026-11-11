@@ -135,6 +135,18 @@ final class AuthController
                 return $this->error('Select a valid role.', 422);
             }
 
+            if (!$bootstrapMode) {
+                // Match the role choices exposed by the UI. In particular, prevent
+                // a crafted POST from assigning a hidden privileged/admin role.
+                $assignableRoleIds = array_map(
+                    static fn (array $role): int => (int) $role['id'],
+                    $this->users->getRoleOptions()
+                );
+                if (!in_array($roleId, $assignableRoleIds, true)) {
+                    return $this->error('You cannot assign that role.', 403);
+                }
+            }
+
             $username = $this->generateUsername($email);
             $userId = $this->users->create(
                 $fullName,
