@@ -45,15 +45,16 @@ final class AuthController
         }
 
         $storedHash = (string) ($user['password_hash'] ?? '');
-        $passwordMatches = password_verify($password, $storedHash);
-        $legacyDemoPassword = $this->isLegacyDemoPassword($user, $password);
+        $passwordMatches = $user !== null && password_verify($password, $storedHash);
 
-        if (!$user || (!$passwordMatches && !$legacyDemoPassword)) {
+        // Only password hashes are accepted. Demo-password shortcuts must never be
+        // enabled in production authentication.
+        if (!$passwordMatches) {
             $this->safeAudit(null, 'login_failed');
             return $this->error('Invalid username/email or password.', 401);
         }
 
-        if ($legacyDemoPassword || password_needs_rehash($storedHash, PASSWORD_DEFAULT)) {
+        if (password_needs_rehash($storedHash, PASSWORD_DEFAULT)) {
             try {
                 $this->users->updatePasswordHash((int) $user['id'], password_hash($password, PASSWORD_DEFAULT));
             } catch (Throwable $exception) {
@@ -107,6 +108,18 @@ final class AuthController
 
 
         try {
+            // Bootstrap is allowed only while the user table is empty. Once the
+            // first administrator exists, registration requires an authenticated
+            // account with the manage_users permission. The route flag alone is
+            // not trusted as authorization.
+            if (!$bootstrapMode) {
+                $currentUserId = current_user_id();
+                if (!$isAdminAction || $currentUserId === null
+                    || !$this->users->hasPermission($currentUserId, 'manage_users')) {
+                    return $this->error('You are not authorized to create user accounts.', 403);
+                }
+            }
+
             if ($this->users->existsByEmail($email)) {
                 return $this->error('That email address is already registered.', 409);
             }
@@ -180,7 +193,8 @@ final class AuthController
 
                 $mailSent = function_exists('mail') ? @mail($email, $subject, $body, implode("\r\n", $headers)) : false;
                 if (!$mailSent) {
-                    Database::logError('Password reset email not sent', ['email' => $email, 'reset_url' => $resetUrl]);
+                    // Never write password-reset URLs or tokens to application logs.
+                    Database::logError('Password reset email not sent', ['email' => $email]);
                 }
 
                 $this->safeAudit((int) $user['id'], 'password_reset_requested');
@@ -188,7 +202,6 @@ final class AuthController
                 return [
                     'status' => 'success',
                     'message' => 'If that email is in our system, you will receive a reset link shortly.',
-                    'reset_url' => $resetUrl,
                 ];
             }
         } catch (Throwable $exception) {
@@ -298,25 +311,6 @@ final class AuthController
         $this->safeAudit((int) $user['id'], 'remember_login');
 
         return true;
-    }
-
-    private function isLegacyDemoPassword(?array $user, string $password): bool
-    {
-        if (!$user) {
-            return false;
-        }
-
-        $email = strtolower((string) ($user['email'] ?? ''));
-        if (!in_array($email, [
-            'headteacher@demo.com',
-            'teacher@demo.com',
-            'discipline@demo.com',
-            'itadmin@demo.com',
-        ], true)) {
-            return false;
-        }
-
-        return in_array($password, ['demo123!', 'Password123!', 'StrongPassword123!'], true);
     }
 
     private function sanitizeEmail(string $email): string
